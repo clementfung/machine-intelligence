@@ -2,6 +2,8 @@ import requests
 import re
 import time
 from random import randint
+from PorterStemmer import PorterStemmer
+
 
 START_SPELL_CHECK="<span class=\"spell\">Showing results for</span>"
 END_SPELL_CHECK="<br><span class=\"spell_orig\">Search instead for"
@@ -47,4 +49,20 @@ def remove_stop_words(m_str):
     return n_str
 
 def downcase_str(m_str):
+    """
+    Downcase the string
+    """
     return m_str.lower()
+
+def stem_words(m_str):
+    """
+    Completes porter stemming
+    """
+    n_str = ''
+    t = PorterStemmer()
+    for c in m_str.split(' '):
+        n_str += t.stem(c, 0, len(c)-1) + ' '
+    return n_str
+
+
+

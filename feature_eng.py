@@ -3,6 +3,8 @@ Set of rule based features
 """
 import abc
 
+import cleaner
+
 
 #################
 ### Util Functions
@@ -75,3 +77,5 @@ if __name__ == '__main__':
 
     # show that it actually creates objects
     map(lambda x: x().get_feature_name(), ff.feature_classes())
+    df = pd.read_csv('data/train_sample.csv')
+    import pdb; pdb.set_trace()
