@@ -80,13 +80,13 @@ class SearchAndProductBrandMatch(FeatureGenerator):
     feature_description = 'Does the search term have a product?'
 
     def apply_rules(self, row):
-		BRAND_KEY = 'brand'.lower()
-		attributes = eval(row['attributes'])
-		for attr in attributes:
-			if attr[0].lower().find(BRAND_KEY) != -1:
-				attr_tokens = attr[1]
-				return string_compare(attr_tokens, row['search_term'])
-		return 0
+        BRAND_KEY = 'brand'.lower()
+        attributes = eval(row['attributes'])
+        for attr in attributes:
+            if attr[0].lower().find(BRAND_KEY) != -1:
+                attr_tokens = attr[1]
+                return string_compare(attr_tokens, row['search_term'])
+        return 0
 
 
 
