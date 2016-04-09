@@ -60,6 +60,33 @@ class FeatureGenerator:
 ######
 ## Feature ENG
 #####
+
+
+## Word Counts
+class NumOfWordsInSearchTerm(FeatureGenerator):
+    feature_description = "Number of words in the search term"
+  
+    def apply_rules(self, row):
+        search_term = row['search_term']
+        return len(search_term.split())
+
+
+class NumOfWordsInTitle(FeatureGenerator):
+    feature_description = "Number of words in the product title"
+  
+    def apply_rules(self, row):
+        product_title = row['product_title']
+        return len(product_title.split())
+
+class NumOfWordsInProdDescrip(FeatureGenerator):
+    feature_description = "Number of words in the product description"
+  
+    def apply_rules(self, row):
+        prod_descrip = str(row['product_description'])
+        return len(prod_descrip.split())
+
+
+## Search term matches
 class SearchAndTitleMatch(FeatureGenerator):
     feature_description = 'Is the search term in the product title?'
 
@@ -87,8 +114,6 @@ class SearchAndProductBrandMatch(FeatureGenerator):
                 attr_tokens = attr[1]
                 return string_compare(attr_tokens, row['search_term'])
         return 0
-
-
 
 
 
