@@ -6,6 +6,7 @@ import abc
 
 import cleaner
 import pandas as pd
+import re
 
 
 #################
@@ -26,6 +27,10 @@ def string_compare(str_a, str_b):
     a = set(tokenize_string(str_a))
     b = set(tokenize_string(str_b))
     return len(a.intersection(b))
+
+def numbers_in_string(string):
+    A = re.findall('\d+',string)
+    return [float(x) for x in A]
 
 #################
 ### Feature functions
@@ -152,13 +157,79 @@ class SearchAndProductBulletsMatch(FeatureGenerator):
     def apply_rules(self, row):
         BULLETS_KEY = 'bullet'.lower()
         attributes = eval(row['attributes'])
+        matches_sum = 0
         for attr in attributes:
             if attr[0].lower().find(BULLETS_KEY) != -1:
                 attr_tokens = attr[1]
                 # to do: data cleaning
                 attr_tokens = attr_tokens.replace("°"," degrees ")
-                return string_compare(attr_tokens, row['search_term'])
-        return 0
+                matches_sum += string_compare(attr_tokens, row['search_term'])
+        return matches_sum
+
+class SearchAndProductSizeMatch(FeatureGenerator):
+    feature_description = 'If the search term contains size measurements do they match the product attributes?'
+
+    def apply_rules(self, row):
+        search_term = row['search_term']
+        measure_match = False
+        search_term_nums = numbers_in_string(search_term)
+        if len(search_term_nums)>0:
+          SIZE_KEY = '(in.)'
+          attributes = eval(row['attributes'])
+          for attr in attributes:
+              if attr[0].lower().find(SIZE_KEY) != -1:
+                  attr_tokens = attr[1]
+                  measure_match = (attr_tokens in search_term_nums)
+        return measure_match
+
+class SearchAndProductWeightMatch(FeatureGenerator):
+    feature_description = 'If the search term contains weight measurements do they match the product attributes?'
+
+    def apply_rules(self, row):
+        search_term = row['search_term']
+        measure_match = False
+        search_term_nums = numbers_in_string(search_term)
+        if len(search_term_nums)>0:
+          SIZE_KEY = '(lb.)'
+          attributes = eval(row['attributes'])
+          for attr in attributes:
+              if attr[0].lower().find(SIZE_KEY) != -1:
+                  attr_tokens = attr[1]
+                  measure_match = (attr_tokens in search_term_nums)
+        return measure_match
+
+class SearchAndProductSizeInRange(FeatureGenerator):
+    feature_description = 'If the search term contains size measurements, are they in range of the product attributes?'
+
+    def apply_rules(self, row):
+        search_term = row['search_term']
+        measure_in_range = False
+        search_term_nums = numbers_in_string(search_term)
+        if len(search_term_nums)>0:
+          SIZE_KEY = '(in.)'
+          attributes = eval(row['attributes'])
+          for attr in attributes:
+              if attr[0].lower().find(SIZE_KEY) != -1:
+                  attr_tokens = float(attr[1])
+                  measure_in_range = sum([abs(l-attr_tokens)/float(l)<=0.15 for l in search_term_nums])>0
+        return measure_in_range
+
+class SearchAndProductWeightInRange(FeatureGenerator):
+    feature_description = 'If the search term contains weight measurements, are they in range of the product attributes?'
+
+    def apply_rules(self, row):
+        search_term = row['search_term']
+        measure_in_range = False
+        search_term_nums = numbers_in_string(search_term)
+        if len(search_term_nums)>0:
+          SIZE_KEY = '(lb.)'
+          attributes = eval(row['attributes'])
+          for attr in attributes:
+              if attr[0].lower().find(SIZE_KEY) != -1:
+                  attr_tokens = float(attr[1])
+                  measure_in_range = sum([abs(l-attr_tokens)/float(l)<=0.15 for l in search_term_nums])>0
+        return measure_in_range
+
 
 ## Ratios
 class RatioOfDescripToSearch(FeatureGenerator):
@@ -176,6 +247,8 @@ class RatioOfTitleToSearch(FeatureGenerator):
         num_words_search = len(row['search_term'].split())
         num_words_title = len(row['product_title'].split())
         return num_words_title/num_words_search
+
+
 
 ######
 # Using all the feature functions at once
