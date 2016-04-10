@@ -38,6 +38,7 @@ def spell_check(s):
         search = search[1:]
     else:
         search = s
+    str(search)
     return search
 
 
