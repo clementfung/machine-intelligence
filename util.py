@@ -11,20 +11,24 @@ def join_raw(df,
     og_cols = df.columns.values.tolist()
     description_cols = df_desc.columns.values.tolist()
 
-    df = df.join(df_attr, on = "product_uid", rsuffix='_attr')
+    df = pd.merge(df, df_attr, how='left', on = "product_uid")
     df = df.join(df_desc, on = "product_uid", rsuffix='_desc')
     
     df_new = pd.DataFrame() 
+    rows = []
 
     for g, df_g in df.groupby("product_uid"):
         print "Grouping attributes for product uid:", g
         names = df_g["name"].tolist()
-        values = df_g["value"].tolist()
-        attributes = [(names[i], values[i]) for i in xrange(len(df_g))]
-        df_row = df_g[og_cols + description_cols]
+        values = df_g["value"].fillna('').tolist()
+        attributes = [(names[i], values[i]) \
+                for i in xrange(len(df_g))\
+                if not pd.isnull(names[i])
+                ]
+        # just take the first row
+        df_row = df_g[og_cols + description_cols].head(n=1)
         df_row["attributes"] = str(attributes)
         df_new = pd.concat([df_new, df_row])
-
-    return df_new
+    return df_new.fillna('')
 
 

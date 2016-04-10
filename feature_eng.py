@@ -89,10 +89,6 @@ class SearchAndProductBrandMatch(FeatureGenerator):
         return 0
 
 
-
-
-
-
 ######
 # Using all the feature functions at once
 #####
@@ -109,7 +105,6 @@ class FeatureFactory:
         """
         return [cls for cls in FeatureGenerator.__subclasses__()]
 
-
     def get_feature_names(self):
         """
         Return a list of the features names. Same one used in each column
@@ -123,6 +118,7 @@ class FeatureFactory:
         return map(lambda x: (x.get_feature_name(), x.get_feature_description()),
 					self.feature_generators
 					)
+
     def get_feature_descriptions_map(self):
         return { pair[0]: pair[1]
                 for pair in map(lambda x: (x.get_feature_name(), x.get_feature_description()),
