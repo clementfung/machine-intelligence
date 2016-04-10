@@ -235,6 +235,14 @@ class SearchAndProductWeightInRange(FeatureGenerator):
                     measure_in_range = sum(is_15percent_off)>0
         return measure_in_range
 
+class SearchAndProductLastWordMatch(FeatureGenerator):
+    feature_description = "Matching last word in product title assuming that is the predomenent noun to the search term"
+
+    def apply_rules(self, row):
+        product_title = row['product_title']
+        last_word = product_title.split()[-1]
+        search_term = row['search_term']
+        return string_compare(last_word, search_term)
 
 ## Ratios
 class RatioOfDescripToSearch(FeatureGenerator):
