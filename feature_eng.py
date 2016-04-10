@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Set of rule based features
 """
@@ -29,7 +28,7 @@ def string_compare(str_a, str_b):
     return len(a.intersection(b))
 
 def numbers_in_string(string):
-    A = re.findall('\d+',string)
+    A = re.findall(r"[-+]?\d*\.\d+|\d+",string)
     return [float(x) for x in A]
 
 #################
@@ -161,8 +160,6 @@ class SearchAndProductBulletsMatch(FeatureGenerator):
         for attr in attributes:
             if attr[0].lower().find(BULLETS_KEY) != -1:
                 attr_tokens = attr[1]
-                # to do: data cleaning
-                attr_tokens = attr_tokens.replace("°"," degrees ")
                 matches_sum += string_compare(attr_tokens, row['search_term'])
         return matches_sum
 
@@ -209,9 +206,13 @@ class SearchAndProductSizeInRange(FeatureGenerator):
           SIZE_KEY = '(in.)'
           attributes = eval(row['attributes'])
           for attr in attributes:
-              if attr[0].lower().find(SIZE_KEY) != -1:
-                  attr_tokens = float(attr[1])
-                  measure_in_range = sum([abs(l-attr_tokens)/float(l)<=0.15 for l in search_term_nums])>0
+              nums_in_attr = numbers_in_string(attr[1])
+              if attr[0].lower().find(SIZE_KEY) != -1 and len(nums_in_attr)>0:
+                  attr_tokens = nums_in_attr[0]
+                  attr_tokens = float(attr_tokens)
+                  if attr_tokens !=0:
+                    is_15percent_off = [abs(s-attr_tokens)/attr_tokens<=0.15 for s in search_term_nums]
+                    measure_in_range = sum(is_15percent_off)>0
         return measure_in_range
 
 class SearchAndProductWeightInRange(FeatureGenerator):
@@ -225,9 +226,13 @@ class SearchAndProductWeightInRange(FeatureGenerator):
           SIZE_KEY = '(lb.)'
           attributes = eval(row['attributes'])
           for attr in attributes:
-              if attr[0].lower().find(SIZE_KEY) != -1:
-                  attr_tokens = float(attr[1])
-                  measure_in_range = sum([abs(l-attr_tokens)/float(l)<=0.15 for l in search_term_nums])>0
+              nums_in_attr = numbers_in_string(attr[1])
+              if attr[0].lower().find(SIZE_KEY) != -1 and len(nums_in_attr)>0:
+                  attr_tokens = nums_in_attr[0]
+                  attr_tokens = float(attr_tokens)
+                  if attr_tokens !=0:
+                    is_15percent_off = [abs(l-attr_tokens)/attr_tokens<=0.15 for l in search_term_nums]
+                    measure_in_range = sum(is_15percent_off)>0
         return measure_in_range
 
 

@@ -78,5 +78,6 @@ def tokenize_and_clean_str(m_str):
     Puts together all the tokenizing / cleaning
     functions
     """
+    m_str = m_str.decode('utf-8')
     return  stem_words(remove_stop_words(downcase_str(m_str)))\
             .strip().split(' ')
