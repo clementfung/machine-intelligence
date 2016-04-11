@@ -83,7 +83,10 @@ def reduce_to_nouns_and_adjectives(m_str):
     #print "REDUCTION:" 
     #print m_str
     #print cleaned_string
-    #print "-----" 
+    #print "-----"
+    if (len(cleaned_string) == 0):
+        print "WARNING:" + m_str + " reduced to nothing after NAdj"
+         
     return cleaned_string
 
 def is_noun_or_adjective(tag_str):

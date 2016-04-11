@@ -146,6 +146,14 @@ class SearchAndTitleMatch(FeatureGenerator):
         prod_title  = row['product_title']
         return string_compare(search_term, prod_title)
 
+class SearchAndTitleNAdjMatch(FeatureGenerator):
+    feature_description = 'Is the search term in the product title?'
+
+    def apply_rules(self, row):
+        search_term = row['search_term']
+        prod_title  = row['product_title']
+        return noun_and_adjective_compare(search_term, prod_title)
+
 class SearchAndDescriptionMatch(FeatureGenerator):
     feature_description = 'How does the search term match the product description?'
 
@@ -154,6 +162,14 @@ class SearchAndDescriptionMatch(FeatureGenerator):
         prod_de  = row['product_description']
         return string_compare(search_term, prod_de)
     
+class SearchAndDescriptionNAdjMatch(FeatureGenerator):
+    feature_description = 'How does the search term match the product description, nouns and adjectives?'
+
+    def apply_rules(self, row):
+        search_term = row['search_term']
+        prod_de  = row['product_description']
+        return noun_and_adjective_compare(search_term, prod_de)
+
 class SearchAndProductBrandMatch(FeatureGenerator):
     feature_description = 'Does the search term have a product?'
 
@@ -259,6 +275,15 @@ class SearchAndProductLastWordMatch(FeatureGenerator):
         last_word = product_title.split()[-1]
         search_term = row['search_term']
         return string_compare(last_word, search_term)
+
+class SearchAndProductLastWordNAdjMatch(FeatureGenerator):
+    feature_description = "Matching last word in product title assuming that is the predomenent noun to the search term"
+
+    def apply_rules(self, row):
+        product_title = row['product_title']
+        last_word = product_title.split()[-1]
+        search_term = row['search_term']
+        return noun_and_adjective_compare(last_word, search_term)
 
 ## Ratios
 class RatioOfDescripToSearch(FeatureGenerator):
