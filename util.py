@@ -17,7 +17,7 @@ def join_raw(df,
     df_new = pd.DataFrame() 
     rows = []
 
-    for g, df_g in df.groupby("product_uid"):
+    for g, df_g in df.groupby(["product_uid", "search_term"]):
         print "Grouping attributes for product uid:", g
         names = df_g["name"].tolist()
         values = df_g["value"].fillna('').tolist()
