@@ -18,6 +18,14 @@ def tokenize_string(string):
     string = str(string)
     return cleaner.tokenize_and_clean_str(string)
 
+def reduce_and_tokenize_string(string):
+    """
+    Clean, reduce to nouns and adjectives, 
+    and generate tokens (1-gram) from the string
+    """
+    string = str(string)
+    return cleaner.tokenize_and_clean_str(string, True)
+
 def string_compare(str_a, str_b):
     """
     Comparison of two strings. The method is TODO
@@ -25,6 +33,14 @@ def string_compare(str_a, str_b):
     """
     a = set(tokenize_string(str_a))
     b = set(tokenize_string(str_b))
+    return len(a.intersection(b))
+
+def noun_and_adjective_compare(str_a, str_b):
+    """
+    Only compare the nouns in the two strings
+    """
+    a = set(reduce_and_tokenize_string(str_a))
+    b = set(reduce_and_tokenize_string(str_b))
     return len(a.intersection(b))
 
 def numbers_in_string(string):
@@ -322,4 +338,4 @@ if __name__ == '__main__':
     print ff.get_feature_names()
     df = pd.read_csv('data/train_sample.csv')
     df2 = ff.apply_feature_eng(df)
-    import pdb; pdb.set_trace()
+    df2.to_csv('features.out')

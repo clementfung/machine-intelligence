@@ -73,11 +73,32 @@ def stem_words(m_str):
         n_str += t.stem(c) + ' '
     return n_str
 
-def tokenize_and_clean_str(m_str):
+def reduce_to_nouns_and_adjectives(m_str):
+    tags = nltk.pos_tag(nltk.word_tokenize(m_str))
+    cleaned_string = ""
+    for i in xrange(len(tags)):
+        if is_noun_or_adjective(tags[i][1]):
+            cleaned_string += (tags[i][0] + " ")
+    # TODO: Get some verbose mode going
+    #print "REDUCTION:" 
+    #print m_str
+    #print cleaned_string
+    #print "-----" 
+    return cleaned_string
+
+def is_noun_or_adjective(tag_str):
+    return "NN" in tag_str or "JJ" in tag_str
+
+def tokenize_and_clean_str(m_str, reduce = False):
     """
     Puts together all the tokenizing / cleaning
     functions
     """
     m_str = m_str.decode('utf-8')
-    return  stem_words(remove_stop_words(downcase_str(m_str)))\
+    cleaned_string = remove_stop_words(downcase_str(m_str))
+
+    if (reduce):
+        cleaned_string = reduce_to_nouns_and_adjectives(cleaned_string)
+    
+    return stem_words(cleaned_string)\
             .strip().split(' ')
