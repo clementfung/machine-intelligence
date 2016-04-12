@@ -31,4 +31,12 @@ def join_raw(df,
         df_new = pd.concat([df_new, df_row])
     return df_new.fillna('')
 
-
+def flatten_to_list(a):
+    """
+    Takes a list of lists (mixed types) 
+    to return a list of single objects
+    """
+    return reduce(
+            lambda l,r: l + r, 
+            map(lambda x: [x] if not type(x) == list else x, a)
+            )

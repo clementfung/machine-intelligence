@@ -7,6 +7,8 @@ import cleaner
 import pandas as pd
 import re
 
+from util import flatten_to_list
+
 
 #################
 ### Util Functions
@@ -313,7 +315,7 @@ class RatioOfTitleToSearch(FeatureGenerator):
 #####
 class FeatureFactory:
     def __init__(self, ignore_features=[]):
-        # istantiate all the feature classes
+        # instantiate all the feature classes
         self.ignore_features = ignore_features
         self.feature_generators = map(lambda x: x(), self.feature_classes())
 
@@ -329,15 +331,15 @@ class FeatureFactory:
         """
         Return a list of the features names. Same one used in each column
         """
-        return map(lambda x: x.get_feature_name(), self.feature_generators)
+        return flatten_to_list(map(lambda x: x.get_feature_name(), self.feature_generators))
 
     def get_feature_descriptions(self):
         """
         Return a list of the features descriptions. 
         """
-        return map(lambda x: (x.get_feature_name(), x.get_feature_description()),
+        return flatten_to_list(map(lambda x: (x.get_feature_name(), x.get_feature_description()),
 					self.feature_generators
-					)
+					))
 
     def get_feature_descriptions_map(self):
         return { pair[0]: pair[1]
