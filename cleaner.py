@@ -2,13 +2,13 @@ import requests
 import re
 import time
 from random import randint
-from PorterStemmer import PorterStemmer
 
 import nltk
 from nltk.corpus import stopwords
 
 from nltk.tag.perceptron import PerceptronTagger
 # Global variable to load once
+print 'Loading global tagger... please wait a few seconds'
 TAGGER = PerceptronTagger()
 
 START_SPELL_CHECK="<span class=\"spell\">Showing results for</span>"
@@ -71,7 +71,6 @@ def stem_words(m_str):
     Completes porter stemming
     """
     n_str = ''
-    #t = PorterStemmer()
     t =  nltk.stem.PorterStemmer()
     for c in m_str.split(' '):
         n_str += t.stem(c) + ' '
