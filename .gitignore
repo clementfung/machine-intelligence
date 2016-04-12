@@ -67,3 +67,7 @@ target/
 *.jpg
 *.avi
 data/
+
+
+# speicifc
+features.out

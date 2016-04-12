@@ -303,13 +303,18 @@ class RatioOfTitleToSearch(FeatureGenerator):
         return num_words_title/num_words_search
 
 
+####
+# Semantic Based features
+# -- these are slow on first loadup
+####
 
 ######
 # Using all the feature functions at once
 #####
 class FeatureFactory:
-    def __init__(self):
+    def __init__(self, ignore_features=[]):
         # istantiate all the feature classes
+        self.ignore_features = ignore_features
         self.feature_generators = map(lambda x: x(), self.feature_classes())
 
     def feature_classes(self):
@@ -342,12 +347,14 @@ class FeatureFactory:
                 }
 
 
-    def apply_feature_eng(self,df):
+    def apply_feature_eng(self,df, verbose=False):
         """
         Generates a new set of features
         to the data frame passed in
         """
         for feat in self.feature_generators:
+            if verbose:
+                print "Computing feature ", feat.get_feature_name()
             df[feat.get_feature_name()] = df.apply(
                     feat.apply_rules, axis=1
                     )
@@ -361,6 +368,6 @@ if __name__ == '__main__':
 
     # show that it actually creates objects
     print ff.get_feature_names()
-    df = pd.read_csv('data/train_sample.csv')
-    df2 = ff.apply_feature_eng(df)
+    df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
+    df2 = ff.apply_feature_eng(df, verbose=True)
     df2.to_csv('features.out')

@@ -7,6 +7,10 @@ from PorterStemmer import PorterStemmer
 import nltk
 from nltk.corpus import stopwords
 
+from nltk.tag.perceptron import PerceptronTagger
+# Global variable to load once
+TAGGER = PerceptronTagger()
+
 START_SPELL_CHECK="<span class=\"spell\">Showing results for</span>"
 END_SPELL_CHECK="<br><span class=\"spell_orig\">Search instead for"
 
@@ -74,7 +78,8 @@ def stem_words(m_str):
     return n_str
 
 def reduce_to_nouns_and_adjectives(m_str):
-    tags = nltk.pos_tag(nltk.word_tokenize(m_str))
+    # Use global Tagger because its much faster
+    tags = nltk.tag._pos_tag(nltk.word_tokenize(m_str), None, TAGGER)
     cleaned_string = ""
     for i in xrange(len(tags)):
         if is_noun_or_adjective(tags[i][1]):
