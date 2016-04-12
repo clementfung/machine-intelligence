@@ -71,3 +71,5 @@ data/
 
 # speicifc
 features.out
+*.pkl
+train_sample.csv

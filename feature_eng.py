@@ -2,14 +2,20 @@
 Set of rule based features
 """
 import abc
+import os
 
 import cleaner
 import pandas as pd
 import re
 
 from util import flatten_to_list
+from sklearn.externals import joblib
+import cPickle as pickle
 
 
+from sklearn.metrics.pairwise  import cosine_similarity
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from nltk.corpus import stopwords
 #################
 ### Util Functions
 #################
@@ -49,6 +55,13 @@ def numbers_in_string(string):
     A = re.findall(r"[-+]?\d*\.\d+|\d+",string)
     return [float(x) for x in A]
 
+
+def get_cosine_similarity(row, df_corpus, vectorizer, X):
+    row_num = df_corpus[df_corpus['product_uid'] == row['product_uid']].index
+    return cosine_similarity(X[row_num],vectorizer.transform([row['search_term']])).tolist()[0][0]
+
+
+
 #################
 ### Feature functions
 #################
@@ -61,7 +74,7 @@ class FeatureGenerator:
     __metaclass__ = abc.ABCMeta
     feature_description = ''
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         pass
 
     def get_feature_name(self):
@@ -89,6 +102,28 @@ class FeatureGenerator:
         for i in xrange(len(row_vals)):
             row_dict[feat_names[i]] = row_vals[i]
         return pd.Series(row_dict)
+
+class SklearnGenerator:
+    """
+    Uses something from sklearn. We can pickle it
+    so that its faster in load time
+    https://www.youtube.com/watch?v=yYey8ntlK_E
+    """
+    def __init__(self, pickle_path = '', *args, **kwargs):
+        self.path = '%s/%s.pkl' % (pickle_path, self.__class__.__name__)
+        self.science = dict()
+    def is_serialized(self):
+        return os.path.isfile(self.path)
+
+    def get_serialized(self):
+        print "Loading science data for ", self.__class__.__name__, " from ", self.path
+        m_data = pickle.load(open(self.path, 'rb'))
+        self.science = m_data
+
+    def set_serialized(self):
+        print "Saving science data for ", self.__class__.__name__, " to ", self.path
+        with open(self.path, 'wb') as f:
+            pickle.dump(self.science, f)
 ######
 ## Feature ENG
 #####
@@ -320,15 +355,71 @@ class RatioOfTitleToSearch(FeatureGenerator):
 # Semantic Based features
 # -- these are slow on first loadup
 ####
+class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
+    featur_description = 'Cosine similarity between search term and product description. Uses a count vectorizer'
+    def __init__(self, corpus_csv='data/product_descriptions.csv', *args, **kwargs):
+        FeatureGenerator.__init__(self)
+        SklearnGenerator.__init__(self, *args, **kwargs)
+        self.corpus_csv = corpus_csv
+
+        if self.is_serialized():
+            self.get_serialized()
+        else:
+            #TODO
+            df_prods = pd.read_csv(self.corpus_csv)
+            vect = CountVectorizer(min_df=1, stop_words=stopwords.words('english'))
+            X_vect = vect.fit_transform(df_prods['product_description'])
+            self.science['vect'] = vect
+            self.science['X_vect'] = X_vect
+            self.science['corpus'] = df_prods
+            self.set_serialized()
+
+    def apply_rules(self, row):
+        return self.set_new_features(
+                get_cosine_similarity(
+                    row, 
+                    self.science['corpus'], 
+                    self.science['vect'], 
+                    self.science['X_vect'],
+                    )
+                )
+
+class SearchDescriptionTfidfVectorizer(FeatureGenerator, SklearnGenerator):
+    featur_description = 'Cosine similarity between search term and product description. Uses a count vectorizer'
+    def __init__(self, corpus_csv='data/product_descriptions.csv', *args, **kwargs):
+        FeatureGenerator.__init__(self)
+        SklearnGenerator.__init__(self, *args, **kwargs)
+        self.corpus_csv = corpus_csv
+
+        if self.is_serialized():
+            self.get_serialized()
+        else:
+            #TODO
+            df_prods = pd.read_csv(self.corpus_csv)
+            vect = TfidfVectorizer(min_df=1, stop_words=stopwords.words('english'))
+            X_vect = vect.fit_transform(df_prods['product_description'])
+            self.science['vect'] = vect
+            self.science['X_vect'] = X_vect
+            self.science['corpus'] = df_prods
+            self.set_serialized()
+
+    def apply_rules(self, row):
+        return self.set_new_features(
+                get_cosine_similarity(
+                    row, 
+                    self.science['corpus'], 
+                    self.science['vect'], 
+                    self.science['X_vect'],
+                    )
+                )
 
 ######
 # Using all the feature functions at once
 #####
 class FeatureFactory:
-    def __init__(self, ignore_features=[]):
+    def __init__(self, *args, **kwargs):
         # instantiate all the feature classes
-        self.ignore_features = ignore_features
-        self.feature_generators = map(lambda x: x(), self.feature_classes())
+        self.feature_generators = map(lambda x: x(*args, **kwargs), self.feature_classes())
 
     def feature_classes(self):
         """
