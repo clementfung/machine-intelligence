@@ -65,10 +65,10 @@ class FeatureGenerator:
         pass
 
     def get_feature_name(self):
-        return self.__class__.__name__
+        return [self.__class__.__name__]
 
     def get_feature_description(self):
-        return self.feature_description
+        return [self.feature_description] if type(self.feature_description) == str else self.feature_description
 
 
     @abc.abstractmethod
@@ -79,6 +79,16 @@ class FeatureGenerator:
         """
         pass
 
+    def set_new_features(self, row_vals):
+        row_dict = dict()
+        feat_names = self.get_feature_name()
+        if not isinstance(row_vals, list) and not isinstance(row_vals, tuple):
+            # force it to be a tuple
+            row_vals = (row_vals, )
+        assert len(row_vals) == len(feat_names)
+        for i in xrange(len(row_vals)):
+            row_dict[feat_names[i]] = row_vals[i]
+        return pd.Series(row_dict)
 ######
 ## Feature ENG
 #####
@@ -87,45 +97,46 @@ class FeatureGenerator:
 ## Word and character counts
 class NumOfWordsInSearchTerm(FeatureGenerator):
     feature_description = "Number of words in the search term"
+    
   
     def apply_rules(self, row):
         search_term = row['search_term']
-        return len(search_term.split())
+        return self.set_new_features((len(search_term.split())))
 
 class NumOfCharsInSearchTerm(FeatureGenerator):
     feature_description = "Number of characters in the search term"
   
     def apply_rules(self, row):
         search_term = row['search_term']
-        return len(search_term)
+        return self.set_new_features((len(search_term)))
 
 class NumOfWordsInTitle(FeatureGenerator):
     feature_description = "Number of words in the product title"
   
     def apply_rules(self, row):
         product_title = row['product_title']
-        return len(product_title.split())
+        return self.set_new_features((len(product_title.split())))
 
 class NumOfCharsInTitle(FeatureGenerator):
     feature_description = "Number of characters in the product title"
   
     def apply_rules(self, row):
         product_title = row['product_title']
-        return len(product_title)
+        return self.set_new_features((len(product_title)))
 
 class NumOfWordsInProdDescrip(FeatureGenerator):
     feature_description = "Number of words in the product description"
   
     def apply_rules(self, row):
         prod_descrip = str(row['product_description'])
-        return len(prod_descrip.split())
+        return self.set_new_features((len(prod_descrip.split())))
 
 class NumOfCharsInProdDescrip(FeatureGenerator):
     feature_description = "Number of characters in the product description"
   
     def apply_rules(self, row):
         prod_descrip = str(row['product_description'])
-        return len(prod_descrip)
+        return self.set_new_features((len(prod_descrip)))
 
 class NumOfCharsInBrand(FeatureGenerator):
     feature_description = "Number of characters in the product brand"
@@ -136,8 +147,8 @@ class NumOfCharsInBrand(FeatureGenerator):
         for attr in attributes:
             if attr[0].lower().find(BRAND_KEY) != -1:
                 attr_tokens = attr[1]
-                return len(attr_tokens)
-        return 0
+                return self.set_new_features((len(attr_tokens)))
+        return self.set_new_features((0))
 
 ## Search term matches
 class SearchAndTitleMatch(FeatureGenerator):
@@ -146,7 +157,7 @@ class SearchAndTitleMatch(FeatureGenerator):
     def apply_rules(self, row):
         search_term = row['search_term']
         prod_title  = row['product_title']
-        return string_compare(search_term, prod_title)
+        return self.set_new_features((string_compare(search_term, prod_title)))
 
 class SearchAndTitleNAdjMatch(FeatureGenerator):
     feature_description = 'Is the search term in the product title?'
@@ -154,7 +165,7 @@ class SearchAndTitleNAdjMatch(FeatureGenerator):
     def apply_rules(self, row):
         search_term = row['search_term']
         prod_title  = row['product_title']
-        return noun_and_adjective_compare(search_term, prod_title)
+        return self.set_new_features((noun_and_adjective_compare(search_term, prod_title)))
 
 class SearchAndDescriptionMatch(FeatureGenerator):
     feature_description = 'How does the search term match the product description?'
@@ -162,7 +173,7 @@ class SearchAndDescriptionMatch(FeatureGenerator):
     def apply_rules(self, row):
         search_term = row['search_term']
         prod_de  = row['product_description']
-        return string_compare(search_term, prod_de)
+        return self.set_new_features((string_compare(search_term, prod_de)))
     
 class SearchAndDescriptionNAdjMatch(FeatureGenerator):
     feature_description = 'How does the search term match the product description, nouns and adjectives?'
@@ -170,7 +181,7 @@ class SearchAndDescriptionNAdjMatch(FeatureGenerator):
     def apply_rules(self, row):
         search_term = row['search_term']
         prod_de  = row['product_description']
-        return noun_and_adjective_compare(search_term, prod_de)
+        return self.set_new_features((noun_and_adjective_compare(search_term, prod_de)))
 
 class SearchAndProductBrandMatch(FeatureGenerator):
     feature_description = 'Does the search term have a product?'
@@ -181,8 +192,8 @@ class SearchAndProductBrandMatch(FeatureGenerator):
         for attr in attributes:
             if attr[0].lower().find(BRAND_KEY) != -1:
                 attr_tokens = attr[1]
-                return string_compare(attr_tokens, row['search_term'])
-        return 0
+                return self.set_new_features((string_compare(attr_tokens, row['search_term'])))
+        return self.set_new_features((0))
 
 class SearchAndProductBulletsMatch(FeatureGenerator):
     feature_description = 'Is the search term in the products bullet points?'
@@ -195,7 +206,7 @@ class SearchAndProductBulletsMatch(FeatureGenerator):
             if attr[0].lower().find(BULLETS_KEY) != -1:
                 attr_tokens = attr[1]
                 matches_sum += string_compare(attr_tokens, row['search_term'])
-        return matches_sum
+        return self.set_new_features((matches_sum))
 
 class SearchAndProductSizeMatch(FeatureGenerator):
     feature_description = 'If the search term contains size measurements do they match the product attributes?'
@@ -211,7 +222,7 @@ class SearchAndProductSizeMatch(FeatureGenerator):
               if attr[0].lower().find(SIZE_KEY) != -1:
                   attr_tokens = attr[1]
                   measure_match = (attr_tokens in search_term_nums)
-        return measure_match
+        return self.set_new_features((measure_match))
 
 class SearchAndProductWeightMatch(FeatureGenerator):
     feature_description = 'If the search term contains weight measurements do they match the product attributes?'
@@ -227,7 +238,7 @@ class SearchAndProductWeightMatch(FeatureGenerator):
               if attr[0].lower().find(SIZE_KEY) != -1:
                   attr_tokens = attr[1]
                   measure_match = (attr_tokens in search_term_nums)
-        return measure_match
+        return self.set_new_features((measure_match))
 
 class SearchAndProductSizeInRange(FeatureGenerator):
     feature_description = 'If the search term contains size measurements, are they in range of the product attributes?'
@@ -247,7 +258,7 @@ class SearchAndProductSizeInRange(FeatureGenerator):
                   if attr_tokens !=0:
                     is_15percent_off = [abs(s-attr_tokens)/attr_tokens<=0.15 for s in search_term_nums]
                     measure_in_range = sum(is_15percent_off)>0
-        return measure_in_range
+        return self.set_new_features((measure_in_range))
 
 class SearchAndProductWeightInRange(FeatureGenerator):
     feature_description = 'If the search term contains weight measurements, are they in range of the product attributes?'
@@ -267,7 +278,7 @@ class SearchAndProductWeightInRange(FeatureGenerator):
                   if attr_tokens !=0:
                     is_15percent_off = [abs(l-attr_tokens)/attr_tokens<=0.15 for l in search_term_nums]
                     measure_in_range = sum(is_15percent_off)>0
-        return measure_in_range
+        return self.set_new_features((measure_in_range))
 
 class SearchAndProductLastWordMatch(FeatureGenerator):
     feature_description = "Matching last word in product title assuming that is the predomenent noun to the search term"
@@ -276,7 +287,7 @@ class SearchAndProductLastWordMatch(FeatureGenerator):
         product_title = row['product_title']
         last_word = product_title.split()[-1]
         search_term = row['search_term']
-        return string_compare(last_word, search_term)
+        return self.set_new_features((string_compare(last_word, search_term)))
 
 class SearchAndProductLastWordNAdjMatch(FeatureGenerator):
     feature_description = "Matching last word in product title assuming that is the predomenent noun to the search term"
@@ -285,7 +296,7 @@ class SearchAndProductLastWordNAdjMatch(FeatureGenerator):
         product_title = row['product_title']
         last_word = product_title.split()[-1]
         search_term = row['search_term']
-        return noun_and_adjective_compare(last_word, search_term)
+        return self.set_new_features((noun_and_adjective_compare(last_word, search_term)))
 
 ## Ratios
 class RatioOfDescripToSearch(FeatureGenerator):
@@ -294,7 +305,7 @@ class RatioOfDescripToSearch(FeatureGenerator):
     def apply_rules(self, row):
         num_words_search = len(row['search_term'].split())
         num_words_descrip = len(str(row['product_description']).split())
-        return num_words_descrip/num_words_search
+        return self.set_new_features((num_words_descrip/num_words_search))
 
 class RatioOfTitleToSearch(FeatureGenerator):
     feature_descriptoin= "Number of words in product title to number of words in search term"
@@ -302,7 +313,7 @@ class RatioOfTitleToSearch(FeatureGenerator):
     def apply_rules(self, row):
         num_words_search = len(row['search_term'].split())
         num_words_title = len(row['product_title'].split())
-        return num_words_title/num_words_search
+        return self.set_new_features((num_words_title/num_words_search))
 
 
 ####
@@ -370,6 +381,7 @@ if __name__ == '__main__':
 
     # show that it actually creates objects
     print ff.get_feature_names()
+    print ff.get_feature_descriptions()
     df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
     df2 = ff.apply_feature_eng(df, verbose=True)
     df2.to_csv('features.out')
