@@ -23,7 +23,6 @@ def tokenize_string(string):
     """
     Clean and generate tokens (1-gram) from the string
     """
-    string = str(string)
     return cleaner.tokenize_and_clean_str(string)
 
 def reduce_and_tokenize_string(string):
@@ -31,7 +30,6 @@ def reduce_and_tokenize_string(string):
     Clean, reduce to nouns and adjectives, 
     and generate tokens (1-gram) from the string
     """
-    string = str(string)
     return cleaner.tokenize_and_clean_str(string, True)
 
 def string_compare(str_a, str_b):
@@ -385,7 +383,7 @@ class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
                 )
 
 class SearchDescriptionTfidfVectorizer(FeatureGenerator, SklearnGenerator):
-    featur_description = 'Cosine similarity between search term and product description. Uses a count vectorizer'
+    featur_description = 'Cosine similarity between search term and product description. Uses a tfidf vectorizer'
     def __init__(self, corpus_csv='data/product_descriptions.csv', *args, **kwargs):
         FeatureGenerator.__init__(self)
         SklearnGenerator.__init__(self, *args, **kwargs)
@@ -459,7 +457,8 @@ class FeatureFactory:
         for feat in self.feature_generators:
             if verbose:
                 print "Computing feature ", feat.get_feature_name()
-            df[feat.get_feature_name()] = df.apply(
+
+            df[feat.get_feature_name()] = df.fillna('').apply(
                     feat.apply_rules, axis=1
                     )
         return df

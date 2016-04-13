@@ -6,6 +6,7 @@ from random import randint
 import nltk
 from nltk.corpus import stopwords
 
+from unicodedata import  normalize
 from nltk.tag.perceptron import PerceptronTagger
 # Global variable to load once
 print 'Loading global tagger... please wait a few seconds'
@@ -76,7 +77,7 @@ def stem_words(m_str):
         n_str += t.stem(c) + ' '
     return n_str
 
-def reduce_to_nouns_and_adjectives(m_str):
+def reduce_to_nouns_and_adjectives(m_str, verbose=False):
     # Use global Tagger because its much faster
     tags = nltk.tag._pos_tag(nltk.word_tokenize(m_str), None, TAGGER)
     cleaned_string = ""
@@ -88,7 +89,7 @@ def reduce_to_nouns_and_adjectives(m_str):
     #print m_str
     #print cleaned_string
     #print "-----"
-    if (len(cleaned_string) == 0):
+    if (len(cleaned_string) == 0 and verbose):
         print "WARNING:" + m_str + " reduced to nothing after NAdj"
          
     return cleaned_string
@@ -101,7 +102,14 @@ def tokenize_and_clean_str(m_str, reduce = False):
     Puts together all the tokenizing / cleaning
     functions
     """
-    m_str = m_str.decode('utf-8')
+    try:
+        m_str = m_str.decode('utf-8')
+    except UnicodeEncodeError:
+        m_str = m_str.encode('ascii', errors='ignore')
+    except:
+        import pdb; pdb.set_trace()
+
+    m_str = hardcode_cleaning(m_str)
     cleaned_string = remove_stop_words(downcase_str(m_str))
 
     if (reduce):
@@ -109,3 +117,48 @@ def tokenize_and_clean_str(m_str, reduce = False):
     
     return stem_words(cleaned_string)\
             .strip().split(' ')
+
+def hardcode_cleaning(s):
+    if isinstance(s, str):
+        s = re.sub(r"(\w)\.([A-Z])", r"\1 \2", s) #Split words with a.A
+        s = s.lower()
+        s = s.replace("  "," ")
+        s = s.replace(",","") #could be number / segment later
+        s = s.replace("$"," ")
+        s = s.replace("?"," ")
+        s = s.replace("-"," ")
+        s = s.replace("//","/")
+        s = s.replace("..",".")
+        s = s.replace(" / "," ")
+        s = s.replace(" \\ "," ")
+        s = s.replace("."," . ")
+        s = re.sub(r"(^\.|/)", r"", s)
+        s = re.sub(r"(\.|/)$", r"", s)
+        s = re.sub(r"([0-9])([a-z])", r"\1 \2", s)
+        s = re.sub(r"([a-z])([0-9])", r"\1 \2", s)
+        s = s.replace(" x "," xbi ")
+        s = re.sub(r"([a-z])( *)\.( *)([a-z])", r"\1 \4", s)
+        s = re.sub(r"([a-z])( *)/( *)([a-z])", r"\1 \4", s)
+        s = s.replace("*"," xbi ")
+        s = s.replace(" by "," xbi ")
+        s = re.sub(r"([0-9])( *)\.( *)([0-9])", r"\1.\4", s)
+        s = re.sub(r"([0-9]+)( *)(inches|inch|in|')\.?", r"\1in. ", s)
+        s = re.sub(r"([0-9]+)( *)(foot|feet|ft|'')\.?", r"\1ft. ", s)
+        s = re.sub(r"([0-9]+)( *)(pounds|pound|lbs|lb)\.?", r"\1lb. ", s)
+        s = re.sub(r"([0-9]+)( *)(square|sq) ?\.?(feet|foot|ft)\.?", r"\1sq.ft. ", s)
+        s = re.sub(r"([0-9]+)( *)(cubic|cu) ?\.?(feet|foot|ft)\.?", r"\1cu.ft. ", s)
+        s = re.sub(r"([0-9]+)( *)(gallons|gallon|gal)\.?", r"\1gal. ", s)
+        s = re.sub(r"([0-9]+)( *)(ounces|ounce|oz)\.?", r"\1oz. ", s)
+        s = re.sub(r"([0-9]+)( *)(centimeters|cm)\.?", r"\1cm. ", s)
+        s = re.sub(r"([0-9]+)( *)(milimeters|mm)\.?", r"\1mm. ", s)
+        s = re.sub(r"([0-9]+)( *)(degrees|degree)\.?", r"\1deg. ", s)
+        s = s.replace(" v "," volts ")
+        s = re.sub(r"([0-9]+)( *)(volts|volt)\.?", r"\1volt. ", s)
+        s = re.sub(r"([0-9]+)( *)(watts|watt)\.?", r"\1watt. ", s)
+        s = re.sub(r"([0-9]+)( *)(amperes|ampere|amps|amp)\.?", r"\1amp. ", s)
+        s = s.replace("  "," ")
+        s = s.replace(" . "," ")
+    return s
+
+if __name__ == '__main__':
+    pass
