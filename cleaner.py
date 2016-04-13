@@ -1,19 +1,25 @@
 import requests
 import re
 import time
+import spellcheck
+
 from random import randint
 
 import nltk
 from nltk.corpus import stopwords
-
-from unicodedata import  normalize
+from unicodedata import normalize
 from nltk.tag.perceptron import PerceptronTagger
+
 # Global variable to load once
 print 'Loading global tagger... please wait a few seconds'
 TAGGER = PerceptronTagger()
 
 START_SPELL_CHECK="<span class=\"spell\">Showing results for</span>"
 END_SPELL_CHECK="<br><span class=\"spell_orig\">Search instead for"
+
+PD = 'product_desciption'
+PT = 'product_title'
+ST = 'search_term'
 
 HTML_Codes = (
         ("'", '&#39;'),
@@ -88,6 +94,7 @@ def reduce_to_nouns_and_adjectives(m_str, verbose=False):
          
     return cleaned_string
 
+
 def is_noun_or_adjective(tag_str):
     return "NN" in tag_str or "JJ" in tag_str
 
@@ -155,6 +162,61 @@ def hardcode_cleaning(s):
         s = s.replace("  "," ")
         s = s.replace(" . "," ")
     return s
+
+def hardcore_spell_check(row):
+    
+    search_term = row['search_term']
+    cleaned_term = search_term
+    if (search_term in spellcheck.spellchecks):
+        cleaned_term = spellcheck.spellchecks[search_term]
+    cleaned_term = hardcode_cleaning(cleaned_term)
+    return cleaned_term
+
+def reduce_title(row):
+    """
+    Reduce the title to noun or adjective
+    """
+    
+    # Use global Tagger because its much faster
+    title = row['product_title']
+    tags = nltk.tag._pos_tag(nltk.word_tokenize(title), None, TAGGER)
+    cleaned_string = ""
+    for i in xrange(len(tags)):
+        if is_noun_or_adjective(tags[i][1]):
+            cleaned_string += (tags[i][0] + " ")
+    return cleaned_string
+
+def reduce_description(row):
+    """
+    Reduce the product division to noun or adjective
+    """
+    # Use global Tagger because its much faster
+    prod_des = row['product_description']
+    tags = nltk.tag._pos_tag(nltk.word_tokenize(prod_des), None, TAGGER)
+    cleaned_string = ""
+    for i in xrange(len(tags)):
+        if is_noun_or_adjective(tags[i][1]):
+            cleaned_string += (tags[i][0] + " ")
+    return cleaned_string
+
+def reduce_to_dominant_words(row):
+    """
+    Compare the dominant words in the product title with the search term
+    """
+    title = row['product_title']
+    tags = nltk.tag._pos_tag(nltk.word_tokenize(title), None, TAGGER)
+    dom_words_string = ""
+
+    # Add all words right before a stop word
+    for j in xrange(len(tags)):        
+        if tags[j][0] in stopwords.words('english') and j > 0:
+            dom_words_string += (tags[j-1][0] + " ")
+
+    # Also add the last word
+    if len(tags) > 0:
+        dom_words_string += (tags[-1][0] + "")
+    
+    return dom_words_string
 
 if __name__ == '__main__':
     pass

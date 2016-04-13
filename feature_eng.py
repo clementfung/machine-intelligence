@@ -7,6 +7,7 @@ import os
 import cleaner
 import pandas as pd
 import re
+import nltk
 
 from util import flatten_to_list
 from sklearn.externals import joblib
@@ -23,14 +24,12 @@ def tokenize_string(string):
     """
     Clean and generate tokens (1-gram) from the string
     """
-    string = str(string)
     return cleaner.tokenize_and_clean_str(string, stem = False)
 
 def stem_and_tokenize_string(string):
     """
     Clean and generate tokens (1-gram) from the string
     """
-    string = str(string)
     return cleaner.tokenize_and_clean_str(string, stem = True)
 
 def reduce_and_tokenize_string(string):
@@ -38,7 +37,6 @@ def reduce_and_tokenize_string(string):
     Clean, reduce to nouns and adjectives, 
     and generate tokens (1-gram) from the string
     """
-    string = str(string)
     return cleaner.tokenize_and_clean_str(string, stem = False, reduce = True)
 
 def string_compare(str_a, str_b):
@@ -340,6 +338,14 @@ class SearchAndProductLastWordNAdjMatch(FeatureGenerator):
         search_term = row['search_term']
         return self.set_new_features((noun_and_adjective_compare(last_word, search_term)))
 
+class SearchAndTitleDominantNadjMatch(FeatureGenerator):
+    feature_description = "Matching search term to dominant word"
+
+    def apply_rules(self, row):
+        dominant_words = row['dominant_words']
+        search_term = row['search_term']
+        return self.set_new_features(string_compare(dominant_words, search_term))
+
 ## Ratios
 class RatioOfDescripToSearch(FeatureGenerator):
     feature_description = "Number of words in description to number of words in search term"
@@ -457,7 +463,7 @@ class FeatureFactory:
 					)
                 }
 
-    def apply_feature_eng(self,df, verbose=False):
+    def apply_feature_eng(self, df, verbose=False):
         """
         Generates a new set of features
         to the data frame passed in
@@ -471,6 +477,30 @@ class FeatureFactory:
                     )
         return df
 
+    def preprocess_columns(self, df, verbose=False):
+        """
+        Create new derived columns for feature engineering
+        """
+        # Spellcheck AND hardcore cleaning
+        df['search_term_cleaned'] = df.fillna('').apply(
+                    cleaner.hardcore_spell_check, axis=1
+                    )
+
+        df['product_title_nadj'] = df.fillna('').apply(
+                    cleaner.reduce_title, axis=1
+                    )
+
+        df['product_description_nadj'] = df.fillna('').apply(
+                    cleaner.reduce_description, axis=1
+                    )
+
+        df['dominant_words'] = df.fillna('').apply(
+                    cleaner.reduce_to_dominant_words, axis=1
+                    )
+
+        print "FINISHED PRE-PROCESSING"
+        return df
+
 if __name__ == '__main__':
     # This is how we can use this class.
     # Just create a factory object 
@@ -481,5 +511,8 @@ if __name__ == '__main__':
     print ff.get_feature_names()
     print ff.get_feature_descriptions()
     df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
+    df = ff.preprocess_columns(df)
+    df.to_csv('features_pp.out')
+
     df2 = ff.apply_feature_eng(df, verbose=True)
     df2.to_csv('features.out')
