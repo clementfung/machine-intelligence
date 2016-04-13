@@ -46,7 +46,6 @@ def spell_check(s):
     str(search)
     return search
 
-
 ###
 # Basic word cleaning
 ###
@@ -84,11 +83,6 @@ def reduce_to_nouns_and_adjectives(m_str, verbose=False):
     for i in xrange(len(tags)):
         if is_noun_or_adjective(tags[i][1]):
             cleaned_string += (tags[i][0] + " ")
-    # TODO: Get some verbose mode going
-    #print "REDUCTION:" 
-    #print m_str
-    #print cleaned_string
-    #print "-----"
     if (len(cleaned_string) == 0 and verbose):
         print "WARNING:" + m_str + " reduced to nothing after NAdj"
          
@@ -97,7 +91,7 @@ def reduce_to_nouns_and_adjectives(m_str, verbose=False):
 def is_noun_or_adjective(tag_str):
     return "NN" in tag_str or "JJ" in tag_str
 
-def tokenize_and_clean_str(m_str, reduce = False):
+def tokenize_and_clean_str(m_str, stem = True, reduce = False):
     """
     Puts together all the tokenizing / cleaning
     functions
@@ -115,8 +109,10 @@ def tokenize_and_clean_str(m_str, reduce = False):
     if (reduce):
         cleaned_string = reduce_to_nouns_and_adjectives(cleaned_string)
     
-    return stem_words(cleaned_string)\
-            .strip().split(' ')
+    if (stem):
+        cleaned_string = stem_words(cleaned_string)
+
+    return cleaned_string.strip().split(' ')
 
 def hardcode_cleaning(s):
     if isinstance(s, str):

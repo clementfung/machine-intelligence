@@ -23,14 +23,23 @@ def tokenize_string(string):
     """
     Clean and generate tokens (1-gram) from the string
     """
-    return cleaner.tokenize_and_clean_str(string)
+    string = str(string)
+    return cleaner.tokenize_and_clean_str(string, stem = False)
+
+def stem_and_tokenize_string(string):
+    """
+    Clean and generate tokens (1-gram) from the string
+    """
+    string = str(string)
+    return cleaner.tokenize_and_clean_str(string, stem = True)
 
 def reduce_and_tokenize_string(string):
     """
     Clean, reduce to nouns and adjectives, 
     and generate tokens (1-gram) from the string
     """
-    return cleaner.tokenize_and_clean_str(string, True)
+    string = str(string)
+    return cleaner.tokenize_and_clean_str(string, stem = False, reduce = True)
 
 def string_compare(str_a, str_b):
     """
@@ -447,7 +456,6 @@ class FeatureFactory:
                     self.feature_generators
 					)
                 }
-
 
     def apply_feature_eng(self,df, verbose=False):
         """
