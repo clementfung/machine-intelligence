@@ -128,21 +128,21 @@ class ESASimilarityMatch(ESAFeatureGenerator):
         return ['ESA_0', 'ESA_025', 'ESA_05', 'ESA_075', 'ESA_Max']
 
     def apply_rules(self, row):
-        search_term = row['search_term']
-        title  = row['product_title']
+        search_term = row['search_term_cleaned']
+        dom_words  = row['dominant_words']
         relevance = row['relevance']
 
-        search_reduced = fe.reduce_and_tokenize_string(search_term)
-        title_reduced = fe.reduce_and_tokenize_string(title)
+        search_reduced = search_term.split()
+        dom_reduced = dom_words.split()
 
         scores = []
 
         for term in search_reduced:
             
-            for t_term in title_reduced:
+            for t_term in dom_reduced:
                 
                 esa_score = compare_terms(self.process, self.outpipe, term, t_term)
-                score_map = dict(search=search_term, title=title, relevance=relevance, t1=term, t2=t_term, esa_score=esa_score)
+                score_map = dict(search=search_term, dom_words=dom_words, relevance=relevance, t1=term, t2=t_term, esa_score=esa_score)
                 print score_map
                 self.logfile.write(str(score_map) + "\n")
                 scores.append(score_map)
@@ -164,7 +164,7 @@ class ESASimilarityMatch(ESAFeatureGenerator):
 
 if __name__ == '__main__':
     
-    df = pd.read_csv('../data/train_sample.csv')
+    df = pd.read_csv('../features_pp.out')
     ff = ESAFeatureFactory()
     print ff.get_feature_names()
 
