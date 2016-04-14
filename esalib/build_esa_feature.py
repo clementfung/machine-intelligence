@@ -119,13 +119,14 @@ class ESASimilarityMatch(ESAFeatureGenerator):
         self.outpipe = open("tmpout", "r")
         self.process = subprocess.Popen(init_command, stdin=subprocess.PIPE, stdout=self.fw, stderr=self.fw)
         self.logfile = open("esa.log", "w")
-        time.sleep(5)
+        print "Sleeping for 10 seconds to load index first...."
+        time.sleep(10)
 
     def teardown(self):
         self.logfile.close()
 
     def get_feature_name(self):
-        return ['ESA_0', 'ESA_025', 'ESA_05', 'ESA_075', 'ESA_Max']
+        return ['ESA_0', 'ESA_025', 'ESA_05', 'ESA_075', 'ESA_Max', 'Is_High_ESA']
 
     def apply_rules(self, row):
         search_term = row['search_term_cleaned']
@@ -160,7 +161,8 @@ class ESASimilarityMatch(ESAFeatureGenerator):
             ESA_025=quant['esa_score'][0.25], 
             ESA_05=quant['esa_score'][0.5], 
             ESA_075=quant['esa_score'][0.75], 
-            ESA_Max=quant['esa_score'][1]))
+            ESA_Max=quant['esa_score'][1],
+            Is_High_ESA=int(quant['esa_score'][1] > 0.1)))
 
 if __name__ == '__main__':
     
