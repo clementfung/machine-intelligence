@@ -368,24 +368,24 @@ class RatioOfTitleToSearch(FeatureGenerator):
 ####
 class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
     feature_description = 'Cosine similarity between search term and product description. Uses a count vectorizer'
-    def __init__(self, corpus_csv='data/product_descriptions.csv', *args, **kwargs):
+    def __init__(self, set_params = True,corpus_csv='data/product_descriptions.csv', *args, **kwargs):
         FeatureGenerator.__init__(self)
         SklearnGenerator.__init__(self, *args, **kwargs)
         self.corpus_csv = corpus_csv
-
-        if self.is_serialized():
-            self.get_serialized()
-        else:
-            #TODO
-            df_prods = pd.read_csv(self.corpus_csv)
-            vect = CountVectorizer(min_df=1, stop_words=stopwords.words('english'))
-            X_vect = vect.fit_transform(df_prods['product_description'])
-            self.science['vect'] = vect
-            self.science['X_vect'] = X_vect
-            self.science['corpus'] = df_prods
-            self.set_serialized()
-        print 'Generating a corpus index'
-        self.product_index = map_product_uid_to_index(self.science['corpus'])
+        if set_params == True:
+            if self.is_serialized():
+                self.get_serialized()
+            else:
+                #TODO
+                df_prods = pd.read_csv(self.corpus_csv)
+                vect = CountVectorizer(min_df=1, stop_words=stopwords.words('english'))
+                X_vect = vect.fit_transform(df_prods['product_description'])
+                self.science['vect'] = vect
+                self.science['X_vect'] = X_vect
+                self.science['corpus'] = df_prods
+                self.set_serialized()
+            print 'Generating a corpus index'
+            self.product_index = map_product_uid_to_index(self.science['corpus'])
     def apply_rules(self, row):
         return self.set_new_features(
                 get_cosine_similarity(
@@ -398,24 +398,24 @@ class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
 
 class SearchDescriptionTfidfVectorizer(FeatureGenerator, SklearnGenerator):
     feature_description = 'Cosine similarity between search term and product description. Uses a tfidf vectorizer'
-    def __init__(self, corpus_csv='data/product_descriptions.csv', *args, **kwargs):
+    def __init__(self, set_params=True,corpus_csv='data/product_descriptions.csv', *args, **kwargs):
         FeatureGenerator.__init__(self)
         SklearnGenerator.__init__(self, *args, **kwargs)
         self.corpus_csv = corpus_csv
-
-        if self.is_serialized():
-            self.get_serialized()
-        else:
-            #TODO
-            df_prods = pd.read_csv(self.corpus_csv)
-            vect = TfidfVectorizer(min_df=1, stop_words=stopwords.words('english'))
-            X_vect = vect.fit_transform(df_prods['product_description'])
-            self.science['vect'] = vect
-            self.science['X_vect'] = X_vect
-            self.science['corpus'] = df_prods
-            self.set_serialized()
-        print 'Generating a corpus index'
-        self.product_index = map_product_uid_to_index(self.science['corpus'])
+        if set_params: 
+            if self.is_serialized():
+                self.get_serialized()
+            else:
+                #TODO
+                df_prods = pd.read_csv(self.corpus_csv)
+                vect = TfidfVectorizer(min_df=1, stop_words=stopwords.words('english'))
+                X_vect = vect.fit_transform(df_prods['product_description'])
+                self.science['vect'] = vect
+                self.science['X_vect'] = X_vect
+                self.science['corpus'] = df_prods
+                self.set_serialized()
+            print 'Generating a corpus index'
+            self.product_index = map_product_uid_to_index(self.science['corpus'])
 
     def apply_rules(self, row):
         return self.set_new_features(
@@ -431,8 +431,9 @@ class SearchDescriptionTfidfVectorizer(FeatureGenerator, SklearnGenerator):
 # Using all the feature functions at once
 #####
 class FeatureFactory:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, ignore_features = [], *args, **kwargs):
         # instantiate all the feature classes
+        self.ignore_features = ignore_features
         self.feature_generators = map(lambda x: x(*args, **kwargs), self.feature_classes())
 
     def feature_classes(self):
@@ -441,7 +442,12 @@ class FeatureFactory:
         The list will be anything that inherits
         from the base FeatureGenerator class
         """
-        return [cls for cls in FeatureGenerator.__subclasses__()]
+        all_classes = [cls for cls in FeatureGenerator.__subclasses__()]
+        keep_list = []
+        for c in all_classes:
+            if not c in self.ignore_features:
+                keep_list.append(c)
+        return keep_list 
 
     def get_feature_names(self):
         """
@@ -527,12 +533,14 @@ if __name__ == '__main__':
     print ff.get_feature_names()
     print ff.get_feature_descriptions()
     #df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
-    #df = pd.read_csv('data/test_joined.csv', encoding='ISO-8859-1')
-    df = pd.read_csv('data/train_joined.csv', encoding='ISO-8859-1')
+    df = pd.read_csv('data/test_joined.csv', encoding='ISO-8859-1')
+    #df = pd.read_csv('data/train_joined.csv', encoding='ISO-8859-1')
     df = ff.preprocess_columns(df, verbose=True)
+    #df.to_csv('features_pp.out')
     df2 = ff.apply_feature_eng(df, verbose=True)
     # lets keep only computed features to reduce memory size
-    cols = ff.get_feature_names() + ['relevance']
-    #df2[cols].to_csv('data/test_features.csv', index=False)
+    cols = ff.get_feature_names() + ['id', 'relevance']
+    df2[cols].to_csv('data/test_features.csv', index=False)
     print 'saving to csv...'
-    df2[cols].to_csv('data/train_features_v2.csv', index=False)
+    #df2[cols].to_csv('data/train_features_v2.csv', index=False)
+    #df2[cols].to_csv('data/train_sample_features.csv', index=False)
