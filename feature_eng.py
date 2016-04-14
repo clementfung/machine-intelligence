@@ -7,6 +7,7 @@ import os
 import cleaner
 import pandas as pd
 import re
+import nltk
 
 from util import flatten_to_list
 from sklearn.externals import joblib
@@ -16,6 +17,19 @@ import cPickle as pickle
 from sklearn.metrics.pairwise  import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from nltk.corpus import stopwords
+
+# dataframe column constants
+SEARCH = 'search_term'
+SEARCH_CLEANED = 'search_term_cleaned'
+
+TITLE = 'product_title'
+TITLE_CLEANED = 'product_title_cleaned'
+TITLE_NADJ = 'product_title_nadj'
+
+DESCRIPTION = 'product_description'
+DESCRIPTION_CLEANED = 'product_description_cleaned'
+DESCRIPTION_NADJ = 'product_description_nadj'
+
 #################
 ### Util Functions
 #################
@@ -33,28 +47,14 @@ def map_product_uid_to_index(df_prods):
             for i in xrange(len(df_prods))
             }
 
-def reduce_and_tokenize_string(string):
-    """
-    Clean, reduce to nouns and adjectives, 
-    and generate tokens (1-gram) from the string
-    """
-    return cleaner.tokenize_and_clean_str(string, True)
 
 def string_compare(str_a, str_b):
     """
     Comparison of two strings. The method is TODO
     Current uses boolean matching
     """
-    a = set(tokenize_string(str_a))
-    b = set(tokenize_string(str_b))
-    return len(a.intersection(b))
-
-def noun_and_adjective_compare(str_a, str_b):
-    """
-    Only compare the nouns in the two strings
-    """
-    a = set(reduce_and_tokenize_string(str_a))
-    b = set(reduce_and_tokenize_string(str_b))
+    a = set(str_a.split())
+    b = set(str_b.split())
     return len(a.intersection(b))
 
 def numbers_in_string(string):
@@ -63,11 +63,8 @@ def numbers_in_string(string):
 
 
 def get_cosine_similarity(row, corpus_index, vectorizer, X):
-    #row_num = df_corpus[df_corpus['product_uid'] == row['product_uid']].index
-    row_num = corpus_index[row['product_uid']]
+    row_num = corpus_index[int(row['product_uid'])]
     return cosine_similarity(X[row_num],vectorizer.transform([row['search_term']])).tolist()[0][0]
-
-
 
 #################
 ### Feature functions
@@ -140,44 +137,43 @@ class SklearnGenerator:
 class NumOfWordsInSearchTerm(FeatureGenerator):
     feature_description = "Number of words in the search term"
     
-  
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         return self.set_new_features((len(search_term.split())))
 
 class NumOfCharsInSearchTerm(FeatureGenerator):
     feature_description = "Number of characters in the search term"
   
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         return self.set_new_features((len(search_term)))
 
 class NumOfWordsInTitle(FeatureGenerator):
     feature_description = "Number of words in the product title"
   
     def apply_rules(self, row):
-        product_title = row['product_title']
+        product_title = row[TITLE]
         return self.set_new_features((len(product_title.split())))
 
 class NumOfCharsInTitle(FeatureGenerator):
     feature_description = "Number of characters in the product title"
   
     def apply_rules(self, row):
-        product_title = row['product_title']
+        product_title = row[TITLE]
         return self.set_new_features((len(product_title)))
 
 class NumOfWordsInProdDescrip(FeatureGenerator):
     feature_description = "Number of words in the product description"
   
     def apply_rules(self, row):
-        prod_descrip = str(row['product_description'])
+        prod_descrip = str(row[DESCRIPTION])
         return self.set_new_features((len(prod_descrip.split())))
 
 class NumOfCharsInProdDescrip(FeatureGenerator):
     feature_description = "Number of characters in the product description"
   
     def apply_rules(self, row):
-        prod_descrip = str(row['product_description'])
+        prod_descrip = str(row[DESCRIPTION])
         return self.set_new_features((len(prod_descrip)))
 
 class NumOfCharsInBrand(FeatureGenerator):
@@ -197,33 +193,33 @@ class SearchAndTitleMatch(FeatureGenerator):
     feature_description = 'Is the search term in the product title?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
-        prod_title  = row['product_title']
-        return self.set_new_features((string_compare(search_term, prod_title)))
+        search_term = row[SEARCH_CLEANED]
+        prod_title  = row[TITLE_CLEANED]
+        return self.set_new_features(string_compare(search_term, prod_title))
 
 class SearchAndTitleNAdjMatch(FeatureGenerator):
     feature_description = 'Is the search term in the product title?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
-        prod_title  = row['product_title']
-        return self.set_new_features((noun_and_adjective_compare(search_term, prod_title)))
+        search_term = row[SEARCH_CLEANED]
+        prod_title  = row[DESCRIPTION_NADJ]
+        return self.set_new_features(string_compare(search_term, prod_title))
 
 class SearchAndDescriptionMatch(FeatureGenerator):
     feature_description = 'How does the search term match the product description?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
-        prod_de  = row['product_description']
-        return self.set_new_features((string_compare(search_term, prod_de)))
+        search_term = row[SEARCH_CLEANED]
+        prod_de  = row[DESCRIPTION_CLEANED]
+        return self.set_new_features(string_compare(search_term, prod_de))
     
 class SearchAndDescriptionNAdjMatch(FeatureGenerator):
     feature_description = 'How does the search term match the product description, nouns and adjectives?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
-        prod_de  = row['product_description']
-        return self.set_new_features((noun_and_adjective_compare(search_term, prod_de)))
+        search_term = row[SEARCH_CLEANED]
+        prod_de  = row[DESCRIPTION_NADJ]
+        return self.set_new_features(string_compare(search_term, prod_de))
 
 class SearchAndProductBrandMatch(FeatureGenerator):
     feature_description = 'Does the search term have a product?'
@@ -234,7 +230,7 @@ class SearchAndProductBrandMatch(FeatureGenerator):
         for attr in attributes:
             if attr[0].lower().find(BRAND_KEY) != -1:
                 attr_tokens = attr[1]
-                return self.set_new_features((string_compare(attr_tokens, row['search_term'])))
+                return self.set_new_features((string_compare(attr_tokens, row[SEARCH_CLEANED])))
         return self.set_new_features((0))
 
 class SearchAndProductBulletsMatch(FeatureGenerator):
@@ -247,14 +243,14 @@ class SearchAndProductBulletsMatch(FeatureGenerator):
         for attr in attributes:
             if attr[0].lower().find(BULLETS_KEY) != -1:
                 attr_tokens = attr[1]
-                matches_sum += string_compare(attr_tokens, row['search_term'])
+                matches_sum += string_compare(attr_tokens, row[SEARCH_CLEANED])
         return self.set_new_features((matches_sum))
 
 class SearchAndProductSizeMatch(FeatureGenerator):
     feature_description = 'If the search term contains size measurements do they match the product attributes?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         measure_match = False
         search_term_nums = numbers_in_string(search_term)
         if len(search_term_nums)>0:
@@ -270,7 +266,7 @@ class SearchAndProductWeightMatch(FeatureGenerator):
     feature_description = 'If the search term contains weight measurements do they match the product attributes?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         measure_match = False
         search_term_nums = numbers_in_string(search_term)
         if len(search_term_nums)>0:
@@ -286,7 +282,7 @@ class SearchAndProductSizeInRange(FeatureGenerator):
     feature_description = 'If the search term contains size measurements, are they in range of the product attributes?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         measure_in_range = False
         search_term_nums = numbers_in_string(search_term)
         if len(search_term_nums)>0:
@@ -306,7 +302,7 @@ class SearchAndProductWeightInRange(FeatureGenerator):
     feature_description = 'If the search term contains weight measurements, are they in range of the product attributes?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         measure_in_range = False
         search_term_nums = numbers_in_string(search_term)
         if len(search_term_nums)>0:
@@ -326,35 +322,43 @@ class SearchAndProductLastWordMatch(FeatureGenerator):
     feature_description = "Matching last word in product title assuming that is the predomenent noun to the search term"
 
     def apply_rules(self, row):
-        product_title = row['product_title']
-        last_word = product_title.split()[-1]
-        search_term = row['search_term']
+        product_title = row[TITLE_CLEANED].split()
+        last_word = product_title[-1] if len(product_title) > 0 else ''
+        search_term = row[SEARCH_CLEANED]
         return self.set_new_features((string_compare(last_word, search_term)))
 
 class SearchAndProductLastWordNAdjMatch(FeatureGenerator):
     feature_description = "Matching last word in product title assuming that is the predomenent noun to the search term"
 
     def apply_rules(self, row):
-        product_title = row['product_title']
-        last_word = product_title.split()[-1]
-        search_term = row['search_term']
-        return self.set_new_features((noun_and_adjective_compare(last_word, search_term)))
+        product_title = row[TITLE_NADJ].split()
+        last_word = product_title[-1] if len(product_title) > 0 else ''
+        search_term = row[SEARCH_CLEANED]
+        return self.set_new_features(string_compare(last_word, search_term))
+
+class SearchAndTitleDominantNadjMatch(FeatureGenerator):
+    feature_description = "Matching search term to dominant word"
+
+    def apply_rules(self, row):
+        dominant_words = row['dominant_words']
+        search_term = row[SEARCH_CLEANED]
+        return self.set_new_features(string_compare(dominant_words, search_term))
 
 ## Ratios
 class RatioOfDescripToSearch(FeatureGenerator):
     feature_description = "Number of words in description to number of words in search term"
 
     def apply_rules(self, row):
-        num_words_search = len(row['search_term'].split())
-        num_words_descrip = len(str(row['product_description']).split())
+        num_words_search = len(row[SEARCH_CLEANED].split())
+        num_words_descrip = len(str(row[DESCRIPTION_CLEANED]).split())
         return self.set_new_features((num_words_descrip/num_words_search))
 
 class RatioOfTitleToSearch(FeatureGenerator):
     feature_descriptoin= "Number of words in product title to number of words in search term"
 
     def apply_rules(self, row):
-        num_words_search = len(row['search_term'].split())
-        num_words_title = len(row['product_title'].split())
+        num_words_search = len(row[SEARCH_CLEANED].split())
+        num_words_title = len(row[DESCRIPTION_CLEANED].split())
         return self.set_new_features((num_words_title/num_words_search))
 
 
@@ -363,7 +367,7 @@ class RatioOfTitleToSearch(FeatureGenerator):
 # -- these are slow on first loadup
 ####
 class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
-    featur_description = 'Cosine similarity between search term and product description. Uses a count vectorizer'
+    feature_description = 'Cosine similarity between search term and product description. Uses a count vectorizer'
     def __init__(self, corpus_csv='data/product_descriptions.csv', *args, **kwargs):
         FeatureGenerator.__init__(self)
         SklearnGenerator.__init__(self, *args, **kwargs)
@@ -380,8 +384,8 @@ class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
             self.science['X_vect'] = X_vect
             self.science['corpus'] = df_prods
             self.set_serialized()
+        print 'Generating a corpus index'
         self.product_index = map_product_uid_to_index(self.science['corpus'])
-        import pdb; pdb.set_trace()
     def apply_rules(self, row):
         return self.set_new_features(
                 get_cosine_similarity(
@@ -393,7 +397,7 @@ class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
                 )
 
 class SearchDescriptionTfidfVectorizer(FeatureGenerator, SklearnGenerator):
-    featur_description = 'Cosine similarity between search term and product description. Uses a tfidf vectorizer'
+    feature_description = 'Cosine similarity between search term and product description. Uses a tfidf vectorizer'
     def __init__(self, corpus_csv='data/product_descriptions.csv', *args, **kwargs):
         FeatureGenerator.__init__(self)
         SklearnGenerator.__init__(self, *args, **kwargs)
@@ -410,6 +414,7 @@ class SearchDescriptionTfidfVectorizer(FeatureGenerator, SklearnGenerator):
             self.science['X_vect'] = X_vect
             self.science['corpus'] = df_prods
             self.set_serialized()
+        print 'Generating a corpus index'
         self.product_index = map_product_uid_to_index(self.science['corpus'])
 
     def apply_rules(self, row):
@@ -459,8 +464,7 @@ class FeatureFactory:
 					)
                 }
 
-
-    def apply_feature_eng(self,df, verbose=False):
+    def apply_feature_eng(self, df, verbose=False):
         """
         Generates a new set of features
         to the data frame passed in
@@ -474,6 +478,45 @@ class FeatureFactory:
                     )
         return df
 
+    def preprocess_columns(self, df, verbose=False):
+        """
+        Create new derived columns for feature engineering
+        """
+        # Spellcheck AND hardcore cleaning
+        if verbose:
+            print 'search clean'
+        df[SEARCH_CLEANED] = df.fillna('').apply(
+                    cleaner.hardcore_spell_check, axis=1
+                    )
+        if verbose:
+            print 'title clean'
+        df[TITLE_CLEANED] = df.fillna('').apply(
+                    cleaner.clean_title, axis=1
+                    )
+        if verbose:
+            print 'description clean'
+        df[DESCRIPTION_CLEANED] = df.fillna('').apply(
+                    cleaner.clean_description, axis=1
+                    )
+        if verbose:
+            print 'title nadj'
+        df[TITLE_NADJ] = df.fillna('').apply(
+                    cleaner.reduce_title_nadj, axis=1
+                    )
+        if verbose:
+            print 'description nadj'
+        df[DESCRIPTION_NADJ] = df.fillna('').apply(
+                    cleaner.reduce_description_nadj, axis=1
+                    )
+        if verbose:
+            print 'Dominant Words'
+        df['dominant_words'] = df.fillna('').apply(
+                    cleaner.reduce_to_dominant_words, axis=1
+                    )
+
+        print "FINISHED PRE-PROCESSING"
+        return df
+
 if __name__ == '__main__':
     # This is how we can use this class.
     # Just create a factory object 
@@ -483,8 +526,13 @@ if __name__ == '__main__':
     # show that it actually creates objects
     print ff.get_feature_names()
     print ff.get_feature_descriptions()
-    df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
+    #df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
     #df = pd.read_csv('data/test_joined.csv', encoding='ISO-8859-1')
+    df = pd.read_csv('data/train_joined.csv', encoding='ISO-8859-1')
+    df = ff.preprocess_columns(df, verbose=True)
     df2 = ff.apply_feature_eng(df, verbose=True)
+    # lets keep only computed features to reduce memory size
     cols = ff.get_feature_names() + ['relevance']
-    df2[cols].to_csv('data/test_features.csv')
+    #df2[cols].to_csv('data/test_features.csv', index=False)
+    print 'saving to csv...'
+    df2[cols].to_csv('data/train_features_v2.csv', index=False)

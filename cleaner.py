@@ -1,13 +1,15 @@
 import requests
 import re
 import time
+import spellcheck
+
 from random import randint
 
 import nltk
 from nltk.corpus import stopwords
-
-from unicodedata import  normalize
+from unicodedata import normalize
 from nltk.tag.perceptron import PerceptronTagger
+
 # Global variable to load once
 print 'Loading global tagger... please wait a few seconds'
 TAGGER = PerceptronTagger()
@@ -46,7 +48,6 @@ def spell_check(s):
     str(search)
     return search
 
-
 ###
 # Basic word cleaning
 ###
@@ -77,6 +78,22 @@ def stem_words(m_str):
         n_str += t.stem(c) + ' '
     return n_str
 
+def full_clean_string(m_str):
+    """
+    Perform hardcode_cleaning, downcase, stopword removal and stemming
+    """
+    try:
+        m_str = m_str.decode('utf-8')
+    except UnicodeEncodeError:
+        m_str = m_str.encode('ascii', errors='ignore')
+    except:
+        import pdb; pdb.set_trace()
+
+    m_str = hardcode_cleaning(m_str)
+    cleaned_string = remove_stop_words(downcase_str(m_str))
+    cleaned_string = stem_words(cleaned_string)
+    return cleaned_string
+
 def reduce_to_nouns_and_adjectives(m_str, verbose=False):
     # Use global Tagger because its much faster
     tags = nltk.tag._pos_tag(nltk.word_tokenize(m_str), None, TAGGER)
@@ -84,11 +101,6 @@ def reduce_to_nouns_and_adjectives(m_str, verbose=False):
     for i in xrange(len(tags)):
         if is_noun_or_adjective(tags[i][1]):
             cleaned_string += (tags[i][0] + " ")
-    # TODO: Get some verbose mode going
-    #print "REDUCTION:" 
-    #print m_str
-    #print cleaned_string
-    #print "-----"
     if (len(cleaned_string) == 0 and verbose):
         print "WARNING:" + m_str + " reduced to nothing after NAdj"
          
@@ -97,7 +109,7 @@ def reduce_to_nouns_and_adjectives(m_str, verbose=False):
 def is_noun_or_adjective(tag_str):
     return "NN" in tag_str or "JJ" in tag_str
 
-def tokenize_and_clean_str(m_str, reduce = False):
+def tokenize_and_clean_str(m_str, stem = True, reduce = False):
     """
     Puts together all the tokenizing / cleaning
     functions
@@ -115,8 +127,10 @@ def tokenize_and_clean_str(m_str, reduce = False):
     if (reduce):
         cleaned_string = reduce_to_nouns_and_adjectives(cleaned_string)
     
-    return stem_words(cleaned_string)\
-            .strip().split(' ')
+    if (stem):
+        cleaned_string = stem_words(cleaned_string)
+
+    return cleaned_string.strip().split(' ')
 
 def hardcode_cleaning(s):
     if isinstance(s, str):
@@ -159,6 +173,83 @@ def hardcode_cleaning(s):
         s = s.replace("  "," ")
         s = s.replace(" . "," ")
     return s
+
+def hardcore_spell_check(row):
+    
+    search_term = row['search_term']
+    cleaned_term = search_term
+    if (search_term in spellcheck.spellchecks):
+        cleaned_term = spellcheck.spellchecks[search_term]
+    cleaned_term = hardcode_cleaning(cleaned_term)
+    return downcase_str(cleaned_term)
+
+def clean_title(row):
+    """
+    Clean the title 
+    """
+    title = row['product_title']
+    return full_clean_string(title)
+
+def clean_description(row):
+    """
+    Clean the product_description 
+    """
+    product_description = row['product_description']
+    return full_clean_string(product_description)
+
+def reduce_title_nadj(row):
+    """
+    Reduce the title to noun or adjective
+    """
+    # Use global Tagger because its much faster
+    title = row['product_title']
+    tags = nltk.tag._pos_tag(nltk.word_tokenize(title), None, TAGGER)
+    cleaned_string = ""
+    for i in xrange(len(tags)):
+        if is_noun_or_adjective(tags[i][1]):
+            cleaned_string += (tags[i][0] + " ")
+    return downcase_str(cleaned_string)
+
+def reduce_description_nadj(row):
+    """
+    Reduce the product division to noun or adjective
+    """
+    # Use global Tagger because its much faster
+    prod_des = row['product_description']
+    tags = nltk.tag._pos_tag(nltk.word_tokenize(prod_des), None, TAGGER)
+    cleaned_string = ""
+    for i in xrange(len(tags)):
+        if is_noun_or_adjective(tags[i][1]):
+            cleaned_string += (tags[i][0] + " ")
+    return downcase_str(cleaned_string)
+
+def find_preceding_dominant_word(tags, index):
+
+    i = index
+    while i > 0:
+        if is_noun_or_adjective(tags[i][1]):
+            return tags[i][0]
+        i = i-1
+    return ""
+
+def reduce_to_dominant_words(row):
+    """
+    Compare the dominant words in the product title with the search term
+    """
+    title = row['product_title']
+    tags = nltk.tag._pos_tag(nltk.word_tokenize(title), None, TAGGER)
+    dom_words_string = ""
+
+    # add all NAdj words right preceding a stop word
+    for j in xrange(len(tags)):        
+        if tags[j][0] in stopwords.words('english') and j > 0:
+            dom_words_string += (find_preceding_dominant_word(tags, j) + " ")
+
+    # Also add the last word
+    if len(tags) > 0:
+        dom_words_string += (find_preceding_dominant_word(tags, len(tags)-1) + "")
+
+    return downcase_str(dom_words_string)
 
 if __name__ == '__main__':
     pass
