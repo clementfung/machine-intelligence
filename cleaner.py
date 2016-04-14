@@ -181,7 +181,7 @@ def hardcore_spell_check(row):
     if (search_term in spellcheck.spellchecks):
         cleaned_term = spellcheck.spellchecks[search_term]
     cleaned_term = hardcode_cleaning(cleaned_term)
-    return cleaned_term
+    return downcase_str(cleaned_term)
 
 def clean_title(row):
     """
@@ -208,7 +208,7 @@ def reduce_title_nadj(row):
     for i in xrange(len(tags)):
         if is_noun_or_adjective(tags[i][1]):
             cleaned_string += (tags[i][0] + " ")
-    return cleaned_string
+    return downcase_str(cleaned_string)
 
 def reduce_description_nadj(row):
     """
@@ -221,7 +221,16 @@ def reduce_description_nadj(row):
     for i in xrange(len(tags)):
         if is_noun_or_adjective(tags[i][1]):
             cleaned_string += (tags[i][0] + " ")
-    return cleaned_string
+    return downcase_str(cleaned_string)
+
+def find_preceding_dominant_word(tags, index):
+
+    i = index
+    while i > 0:
+        if is_noun_or_adjective(tags[i][1]):
+            return tags[i][0]
+        i = i-1
+    return ""
 
 def reduce_to_dominant_words(row):
     """
@@ -231,16 +240,16 @@ def reduce_to_dominant_words(row):
     tags = nltk.tag._pos_tag(nltk.word_tokenize(title), None, TAGGER)
     dom_words_string = ""
 
-    # Add all words right before a stop word
+    # add all NAdj words right preceding a stop word
     for j in xrange(len(tags)):        
         if tags[j][0] in stopwords.words('english') and j > 0:
-            dom_words_string += (tags[j-1][0] + " ")
+            dom_words_string += (find_preceding_dominant_word(tags, j) + " ")
 
     # Also add the last word
     if len(tags) > 0:
-        dom_words_string += (tags[-1][0] + "")
-    
-    return dom_words_string
+        dom_words_string += (find_preceding_dominant_word(tags, len(tags)-1) + "")
+
+    return downcase_str(dom_words_string)
 
 if __name__ == '__main__':
     pass
