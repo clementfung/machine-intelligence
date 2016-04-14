@@ -25,6 +25,14 @@ def tokenize_string(string):
     """
     return cleaner.tokenize_and_clean_str(string)
 
+def map_product_uid_to_index(df_prods):
+    prod_uid = df_prods['product_uid'].tolist()
+    index    = df_prods.index.tolist()
+    return {
+            prod_uid[i] : index[i]
+            for i in xrange(len(df_prods))
+            }
+
 def reduce_and_tokenize_string(string):
     """
     Clean, reduce to nouns and adjectives, 
@@ -54,8 +62,9 @@ def numbers_in_string(string):
     return [float(x) for x in A]
 
 
-def get_cosine_similarity(row, df_corpus, vectorizer, X):
-    row_num = df_corpus[df_corpus['product_uid'] == row['product_uid']].index
+def get_cosine_similarity(row, corpus_index, vectorizer, X):
+    #row_num = df_corpus[df_corpus['product_uid'] == row['product_uid']].index
+    row_num = corpus_index[row['product_uid']]
     return cosine_similarity(X[row_num],vectorizer.transform([row['search_term']])).tolist()[0][0]
 
 
@@ -371,12 +380,13 @@ class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
             self.science['X_vect'] = X_vect
             self.science['corpus'] = df_prods
             self.set_serialized()
-
+        self.product_index = map_product_uid_to_index(self.science['corpus'])
+        import pdb; pdb.set_trace()
     def apply_rules(self, row):
         return self.set_new_features(
                 get_cosine_similarity(
                     row, 
-                    self.science['corpus'], 
+                    self.product_index,
                     self.science['vect'], 
                     self.science['X_vect'],
                     )
@@ -400,12 +410,13 @@ class SearchDescriptionTfidfVectorizer(FeatureGenerator, SklearnGenerator):
             self.science['X_vect'] = X_vect
             self.science['corpus'] = df_prods
             self.set_serialized()
+        self.product_index = map_product_uid_to_index(self.science['corpus'])
 
     def apply_rules(self, row):
         return self.set_new_features(
                 get_cosine_similarity(
                     row, 
-                    self.science['corpus'], 
+                    self.product_index,
                     self.science['vect'], 
                     self.science['X_vect'],
                     )
@@ -467,11 +478,13 @@ if __name__ == '__main__':
     # This is how we can use this class.
     # Just create a factory object 
     # and let it do the rest of the heavy lifting
-    ff = FeatureFactory()
+    ff = FeatureFactory(corpus_csv='data/product_descriptions.csv', pickle_path = 'pickles/')
 
     # show that it actually creates objects
     print ff.get_feature_names()
     print ff.get_feature_descriptions()
     df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
+    #df = pd.read_csv('data/test_joined.csv', encoding='ISO-8859-1')
     df2 = ff.apply_feature_eng(df, verbose=True)
-    df2.to_csv('features.out')
+    cols = ff.get_feature_names() + ['relevance']
+    df2[cols].to_csv('data/test_features.csv')
