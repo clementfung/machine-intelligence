@@ -17,55 +17,39 @@ import cPickle as pickle
 from sklearn.metrics.pairwise  import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from nltk.corpus import stopwords
+
+# dataframe column constants
+SEARCH = 'search_term'
+SEARCH_CLEANED = 'search_term_cleaned'
+
+TITLE = 'product_title'
+TITLE_CLEANED = 'product_title_cleaned'
+TITLE_NADJ = 'product_title_nadj'
+
+DESCRIPTION = 'product_description'
+DESCRIPTION_CLEANED = 'product_description_cleaned'
+DESCRIPTION_NADJ = 'product_description_nadj'
+
 #################
 ### Util Functions
 #################
-def tokenize_string(string):
-    """
-    Clean and generate tokens (1-gram) from the string
-    """
-    return cleaner.tokenize_and_clean_str(string, stem = False)
-
-def stem_and_tokenize_string(string):
-    """
-    Clean and generate tokens (1-gram) from the string
-    """
-    return cleaner.tokenize_and_clean_str(string, stem = True)
-
-def reduce_and_tokenize_string(string):
-    """
-    Clean, reduce to nouns and adjectives, 
-    and generate tokens (1-gram) from the string
-    """
-    return cleaner.tokenize_and_clean_str(string, stem = False, reduce = True)
 
 def string_compare(str_a, str_b):
     """
     Comparison of two strings. The method is TODO
     Current uses boolean matching
     """
-    a = set(tokenize_string(str_a))
-    b = set(tokenize_string(str_b))
-    return len(a.intersection(b))
-
-def noun_and_adjective_compare(str_a, str_b):
-    """
-    Only compare the nouns in the two strings
-    """
-    a = set(reduce_and_tokenize_string(str_a))
-    b = set(reduce_and_tokenize_string(str_b))
+    a = set(str_a.split())
+    b = set(str_b.split())
     return len(a.intersection(b))
 
 def numbers_in_string(string):
     A = re.findall(r"[-+]?\d*\.\d+|\d+",string)
     return [float(x) for x in A]
 
-
 def get_cosine_similarity(row, df_corpus, vectorizer, X):
     row_num = df_corpus[df_corpus['product_uid'] == row['product_uid']].index
     return cosine_similarity(X[row_num],vectorizer.transform([row['search_term']])).tolist()[0][0]
-
-
 
 #################
 ### Feature functions
@@ -138,44 +122,43 @@ class SklearnGenerator:
 class NumOfWordsInSearchTerm(FeatureGenerator):
     feature_description = "Number of words in the search term"
     
-  
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         return self.set_new_features((len(search_term.split())))
 
 class NumOfCharsInSearchTerm(FeatureGenerator):
     feature_description = "Number of characters in the search term"
   
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         return self.set_new_features((len(search_term)))
 
 class NumOfWordsInTitle(FeatureGenerator):
     feature_description = "Number of words in the product title"
   
     def apply_rules(self, row):
-        product_title = row['product_title']
+        product_title = row[TITLE]
         return self.set_new_features((len(product_title.split())))
 
 class NumOfCharsInTitle(FeatureGenerator):
     feature_description = "Number of characters in the product title"
   
     def apply_rules(self, row):
-        product_title = row['product_title']
+        product_title = row[TITLE]
         return self.set_new_features((len(product_title)))
 
 class NumOfWordsInProdDescrip(FeatureGenerator):
     feature_description = "Number of words in the product description"
   
     def apply_rules(self, row):
-        prod_descrip = str(row['product_description'])
+        prod_descrip = str(row[DESCRIPTION])
         return self.set_new_features((len(prod_descrip.split())))
 
 class NumOfCharsInProdDescrip(FeatureGenerator):
     feature_description = "Number of characters in the product description"
   
     def apply_rules(self, row):
-        prod_descrip = str(row['product_description'])
+        prod_descrip = str(row[DESCRIPTION])
         return self.set_new_features((len(prod_descrip)))
 
 class NumOfCharsInBrand(FeatureGenerator):
@@ -195,33 +178,33 @@ class SearchAndTitleMatch(FeatureGenerator):
     feature_description = 'Is the search term in the product title?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
-        prod_title  = row['product_title']
-        return self.set_new_features((string_compare(search_term, prod_title)))
+        search_term = row[SEARCH_CLEANED]
+        prod_title  = row[TITLE_CLEANED]
+        return self.set_new_features(string_compare(search_term, prod_title))
 
 class SearchAndTitleNAdjMatch(FeatureGenerator):
     feature_description = 'Is the search term in the product title?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
-        prod_title  = row['product_title']
-        return self.set_new_features((noun_and_adjective_compare(search_term, prod_title)))
+        search_term = row[SEARCH_CLEANED]
+        prod_title  = row[DESCRIPTION_NADJ]
+        return self.set_new_features(string_compare(search_term, prod_title))
 
 class SearchAndDescriptionMatch(FeatureGenerator):
     feature_description = 'How does the search term match the product description?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
-        prod_de  = row['product_description']
-        return self.set_new_features((string_compare(search_term, prod_de)))
+        search_term = row[SEARCH_CLEANED]
+        prod_de  = row[DESCRIPTION_CLEANED]
+        return self.set_new_features(string_compare(search_term, prod_de))
     
 class SearchAndDescriptionNAdjMatch(FeatureGenerator):
     feature_description = 'How does the search term match the product description, nouns and adjectives?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
-        prod_de  = row['product_description']
-        return self.set_new_features((noun_and_adjective_compare(search_term, prod_de)))
+        search_term = row[SEARCH_CLEANED]
+        prod_de  = row[DESCRIPTION_NADJ]
+        return self.set_new_features(string_compare(search_term, prod_de))
 
 class SearchAndProductBrandMatch(FeatureGenerator):
     feature_description = 'Does the search term have a product?'
@@ -232,7 +215,7 @@ class SearchAndProductBrandMatch(FeatureGenerator):
         for attr in attributes:
             if attr[0].lower().find(BRAND_KEY) != -1:
                 attr_tokens = attr[1]
-                return self.set_new_features((string_compare(attr_tokens, row['search_term'])))
+                return self.set_new_features((string_compare(attr_tokens, row[SEARCH_CLEANED])))
         return self.set_new_features((0))
 
 class SearchAndProductBulletsMatch(FeatureGenerator):
@@ -245,14 +228,14 @@ class SearchAndProductBulletsMatch(FeatureGenerator):
         for attr in attributes:
             if attr[0].lower().find(BULLETS_KEY) != -1:
                 attr_tokens = attr[1]
-                matches_sum += string_compare(attr_tokens, row['search_term'])
+                matches_sum += string_compare(attr_tokens, row[SEARCH_CLEANED])
         return self.set_new_features((matches_sum))
 
 class SearchAndProductSizeMatch(FeatureGenerator):
     feature_description = 'If the search term contains size measurements do they match the product attributes?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         measure_match = False
         search_term_nums = numbers_in_string(search_term)
         if len(search_term_nums)>0:
@@ -268,7 +251,7 @@ class SearchAndProductWeightMatch(FeatureGenerator):
     feature_description = 'If the search term contains weight measurements do they match the product attributes?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         measure_match = False
         search_term_nums = numbers_in_string(search_term)
         if len(search_term_nums)>0:
@@ -284,7 +267,7 @@ class SearchAndProductSizeInRange(FeatureGenerator):
     feature_description = 'If the search term contains size measurements, are they in range of the product attributes?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         measure_in_range = False
         search_term_nums = numbers_in_string(search_term)
         if len(search_term_nums)>0:
@@ -304,7 +287,7 @@ class SearchAndProductWeightInRange(FeatureGenerator):
     feature_description = 'If the search term contains weight measurements, are they in range of the product attributes?'
 
     def apply_rules(self, row):
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         measure_in_range = False
         search_term_nums = numbers_in_string(search_term)
         if len(search_term_nums)>0:
@@ -324,26 +307,26 @@ class SearchAndProductLastWordMatch(FeatureGenerator):
     feature_description = "Matching last word in product title assuming that is the predomenent noun to the search term"
 
     def apply_rules(self, row):
-        product_title = row['product_title']
+        product_title = row[TITLE_CLEANED]
         last_word = product_title.split()[-1]
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         return self.set_new_features((string_compare(last_word, search_term)))
 
 class SearchAndProductLastWordNAdjMatch(FeatureGenerator):
     feature_description = "Matching last word in product title assuming that is the predomenent noun to the search term"
 
     def apply_rules(self, row):
-        product_title = row['product_title']
+        product_title = row[TITLE_NADJ]
         last_word = product_title.split()[-1]
-        search_term = row['search_term']
-        return self.set_new_features((noun_and_adjective_compare(last_word, search_term)))
+        search_term = row[SEARCH_CLEANED]
+        return self.set_new_features(string_compare(last_word, search_term))
 
 class SearchAndTitleDominantNadjMatch(FeatureGenerator):
     feature_description = "Matching search term to dominant word"
 
     def apply_rules(self, row):
         dominant_words = row['dominant_words']
-        search_term = row['search_term']
+        search_term = row[SEARCH_CLEANED]
         return self.set_new_features(string_compare(dominant_words, search_term))
 
 ## Ratios
@@ -351,16 +334,16 @@ class RatioOfDescripToSearch(FeatureGenerator):
     feature_description = "Number of words in description to number of words in search term"
 
     def apply_rules(self, row):
-        num_words_search = len(row['search_term'].split())
-        num_words_descrip = len(str(row['product_description']).split())
+        num_words_search = len(row[SEARCH_CLEANED].split())
+        num_words_descrip = len(str(row[DESCRIPTION_CLEANED]).split())
         return self.set_new_features((num_words_descrip/num_words_search))
 
 class RatioOfTitleToSearch(FeatureGenerator):
     feature_descriptoin= "Number of words in product title to number of words in search term"
 
     def apply_rules(self, row):
-        num_words_search = len(row['search_term'].split())
-        num_words_title = len(row['product_title'].split())
+        num_words_search = len(row[SEARCH_CLEANED].split())
+        num_words_title = len(row[DESCRIPTION_CLEANED].split())
         return self.set_new_features((num_words_title/num_words_search))
 
 
@@ -482,16 +465,24 @@ class FeatureFactory:
         Create new derived columns for feature engineering
         """
         # Spellcheck AND hardcore cleaning
-        df['search_term_cleaned'] = df.fillna('').apply(
+        df[SEARCH_CLEANED] = df.fillna('').apply(
                     cleaner.hardcore_spell_check, axis=1
                     )
 
-        df['product_title_nadj'] = df.fillna('').apply(
-                    cleaner.reduce_title, axis=1
+        df[TITLE_CLEANED] = df.fillna('').apply(
+                    cleaner.clean_title, axis=1
                     )
 
-        df['product_description_nadj'] = df.fillna('').apply(
-                    cleaner.reduce_description, axis=1
+        df[DESCRIPTION_CLEANED] = df.fillna('').apply(
+                    cleaner.clean_description, axis=1
+                    )
+
+        df[TITLE_NADJ] = df.fillna('').apply(
+                    cleaner.reduce_title_nadj, axis=1
+                    )
+
+        df[DESCRIPTION_NADJ] = df.fillna('').apply(
+                    cleaner.reduce_description_nadj, axis=1
                     )
 
         df['dominant_words'] = df.fillna('').apply(

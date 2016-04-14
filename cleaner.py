@@ -17,10 +17,6 @@ TAGGER = PerceptronTagger()
 START_SPELL_CHECK="<span class=\"spell\">Showing results for</span>"
 END_SPELL_CHECK="<br><span class=\"spell_orig\">Search instead for"
 
-PD = 'product_desciption'
-PT = 'product_title'
-ST = 'search_term'
-
 HTML_Codes = (
         ("'", '&#39;'),
         ('"', '&quot;'),
@@ -82,6 +78,22 @@ def stem_words(m_str):
         n_str += t.stem(c) + ' '
     return n_str
 
+def full_clean_string(m_str):
+    """
+    Perform hardcode_cleaning, downcase, stopword removal and stemming
+    """
+    try:
+        m_str = m_str.decode('utf-8')
+    except UnicodeEncodeError:
+        m_str = m_str.encode('ascii', errors='ignore')
+    except:
+        import pdb; pdb.set_trace()
+
+    m_str = hardcode_cleaning(m_str)
+    cleaned_string = remove_stop_words(downcase_str(m_str))
+    cleaned_string = stem_words(cleaned_string)
+    return cleaned_string
+
 def reduce_to_nouns_and_adjectives(m_str, verbose=False):
     # Use global Tagger because its much faster
     tags = nltk.tag._pos_tag(nltk.word_tokenize(m_str), None, TAGGER)
@@ -93,7 +105,6 @@ def reduce_to_nouns_and_adjectives(m_str, verbose=False):
         print "WARNING:" + m_str + " reduced to nothing after NAdj"
          
     return cleaned_string
-
 
 def is_noun_or_adjective(tag_str):
     return "NN" in tag_str or "JJ" in tag_str
@@ -172,11 +183,24 @@ def hardcore_spell_check(row):
     cleaned_term = hardcode_cleaning(cleaned_term)
     return cleaned_term
 
-def reduce_title(row):
+def clean_title(row):
+    """
+    Clean the title 
+    """
+    title = row['product_title']
+    return full_clean_string(title)
+
+def clean_description(row):
+    """
+    Clean the product_description 
+    """
+    product_description = row['product_description']
+    return full_clean_string(product_description)
+
+def reduce_title_nadj(row):
     """
     Reduce the title to noun or adjective
     """
-    
     # Use global Tagger because its much faster
     title = row['product_title']
     tags = nltk.tag._pos_tag(nltk.word_tokenize(title), None, TAGGER)
@@ -186,7 +210,7 @@ def reduce_title(row):
             cleaned_string += (tags[i][0] + " ")
     return cleaned_string
 
-def reduce_description(row):
+def reduce_description_nadj(row):
     """
     Reduce the product division to noun or adjective
     """
