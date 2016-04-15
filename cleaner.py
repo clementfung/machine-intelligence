@@ -174,14 +174,51 @@ def hardcode_cleaning(s):
         s = s.replace(" . "," ")
     return s
 
-def hardcore_spell_check(row):
+def get_size(row):
     
+    sizes = []
+    attributes = eval(row['attributes'])
+    SIZE_KEY = '(in.)'
+
+    for attr in attributes:
+        if attr[0].lower().find(SIZE_KEY) != -1:
+            attr_tokens = attr[1]
+            sizes.append(attr[1])
+    return sizes
+
+def get_weight(row):
+    
+    weights = []
+    attributes = eval(row['attributes'])
+    SIZE_KEY = '(lb.)'
+
+    for attr in attributes:
+        if attr[0].lower().find(SIZE_KEY) != -1:
+            attr_tokens = attr[1]
+            weights.append(attr[1])
+    return weights
+
+def get_brand(row):
+
+    BRAND_KEY = 'brand'.lower()
+    attributes = eval(row['attributes'])
+    for attr in attributes:
+        if attr[0].lower().find(BRAND_KEY) != -1:
+            attr_tokens = attr[1]
+            brand = full_clean_string(attr_tokens)
+            return brand
+    return 'Unbranded'
+
+def clean_search(row):
+    """
+    Clean the search term
+    """
     search_term = row['search_term']
     cleaned_term = search_term
     if (search_term in spellcheck.spellchecks):
         cleaned_term = spellcheck.spellchecks[search_term]
-    cleaned_term = hardcode_cleaning(cleaned_term)
-    return downcase_str(cleaned_term)
+    cleaned_term = full_clean_string(cleaned_term)
+    return cleaned_term
 
 def clean_title(row):
     """
@@ -249,7 +286,8 @@ def reduce_to_dominant_words(row):
     if len(tags) > 0:
         dom_words_string += (find_preceding_dominant_word(tags, len(tags)-1) + "")
 
-    return downcase_str(dom_words_string)
+    dom_words_string = hardcode_cleaning(dom_words_string)
+    return dom_words_string
 
 if __name__ == '__main__':
     pass

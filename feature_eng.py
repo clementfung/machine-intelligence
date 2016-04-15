@@ -180,13 +180,10 @@ class NumOfCharsInBrand(FeatureGenerator):
     feature_description = "Number of characters in the product brand"
   
     def apply_rules(self, row):
-        BRAND_KEY = 'brand'.lower()
-        attributes = eval(row['attributes'])
-        for attr in attributes:
-            if attr[0].lower().find(BRAND_KEY) != -1:
-                attr_tokens = attr[1]
-                return self.set_new_features((len(attr_tokens)))
-        return self.set_new_features((0))
+        brand = row['product_brand']
+        if brand.lower().find('unbranded') != -1:
+            return self.set_new_features(0)
+        return self.set_new_features(len(brand))
 
 ## Search term matches
 class SearchAndTitleMatch(FeatureGenerator):
@@ -225,13 +222,8 @@ class SearchAndProductBrandMatch(FeatureGenerator):
     feature_description = 'Does the search term have a product?'
 
     def apply_rules(self, row):
-        BRAND_KEY = 'brand'.lower()
-        attributes = eval(row['attributes'])
-        for attr in attributes:
-            if attr[0].lower().find(BRAND_KEY) != -1:
-                attr_tokens = attr[1]
-                return self.set_new_features((string_compare(attr_tokens, row[SEARCH_CLEANED])))
-        return self.set_new_features((0))
+        brand = row['product_brand']
+        return self.set_new_features((string_compare(brand, row[SEARCH_CLEANED])))
 
 class SearchAndProductBulletsMatch(FeatureGenerator):
     feature_description = 'Is the search term in the products bullet points?'
@@ -250,33 +242,27 @@ class SearchAndProductSizeMatch(FeatureGenerator):
     feature_description = 'If the search term contains size measurements do they match the product attributes?'
 
     def apply_rules(self, row):
+        
         search_term = row[SEARCH_CLEANED]
-        measure_match = False
+        size_dimensions = row['size_dimensions']
+        
         search_term_nums = numbers_in_string(search_term)
-        if len(search_term_nums)>0:
-          SIZE_KEY = '(in.)'
-          attributes = eval(row['attributes'])
-          for attr in attributes:
-              if attr[0].lower().find(SIZE_KEY) != -1:
-                  attr_tokens = attr[1]
-                  measure_match = (attr_tokens in search_term_nums)
-        return self.set_new_features((measure_match))
+        measure_match = set(size_dimensions).intersection(search_term_nums)
+        
+        return self.set_new_features(len(measure_match))
 
 class SearchAndProductWeightMatch(FeatureGenerator):
     feature_description = 'If the search term contains weight measurements do they match the product attributes?'
 
     def apply_rules(self, row):
+        
         search_term = row[SEARCH_CLEANED]
-        measure_match = False
+        weight_dimensions = row['weight_dimensions']
+        
         search_term_nums = numbers_in_string(search_term)
-        if len(search_term_nums)>0:
-          SIZE_KEY = '(lb.)'
-          attributes = eval(row['attributes'])
-          for attr in attributes:
-              if attr[0].lower().find(SIZE_KEY) != -1:
-                  attr_tokens = attr[1]
-                  measure_match = (attr_tokens in search_term_nums)
-        return self.set_new_features((measure_match))
+        measure_match = set(weight_dimensions).intersection(search_term_nums)
+        
+        return self.set_new_features(len(measure_match))
 
 class SearchAndProductSizeInRange(FeatureGenerator):
     feature_description = 'If the search term contains size measurements, are they in range of the product attributes?'
@@ -351,6 +337,8 @@ class RatioOfDescripToSearch(FeatureGenerator):
     def apply_rules(self, row):
         num_words_search = len(row[SEARCH_CLEANED].split())
         num_words_descrip = len(str(row[DESCRIPTION_CLEANED]).split())
+        if (num_words_search == 0):
+            return self.set_new_features(0)
         return self.set_new_features((num_words_descrip/num_words_search))
 
 class RatioOfTitleToSearch(FeatureGenerator):
@@ -359,6 +347,8 @@ class RatioOfTitleToSearch(FeatureGenerator):
     def apply_rules(self, row):
         num_words_search = len(row[SEARCH_CLEANED].split())
         num_words_title = len(row[DESCRIPTION_CLEANED].split())
+        if (num_words_search == 0):
+            return self.set_new_features(0)    
         return self.set_new_features((num_words_title/num_words_search))
 
 
@@ -488,32 +478,56 @@ class FeatureFactory:
         """
         Create new derived columns for feature engineering
         """
-        # Spellcheck AND hardcore cleaning
+        
+        # Spellcheck, hardcore cleaning and porter stemming
         if verbose:
             print 'search clean'
         df[SEARCH_CLEANED] = df.fillna('').apply(
-                    cleaner.hardcore_spell_check, axis=1
-                    )
+                    cleaner.clean_search, axis=1
+                    )        
+
         if verbose:
             print 'title clean'
         df[TITLE_CLEANED] = df.fillna('').apply(
                     cleaner.clean_title, axis=1
                     )
+        
         if verbose:
             print 'description clean'
         df[DESCRIPTION_CLEANED] = df.fillna('').apply(
                     cleaner.clean_description, axis=1
                     )
+        
         if verbose:
             print 'title nadj'
         df[TITLE_NADJ] = df.fillna('').apply(
                     cleaner.reduce_title_nadj, axis=1
                     )
+        
         if verbose:
             print 'description nadj'
         df[DESCRIPTION_NADJ] = df.fillna('').apply(
                     cleaner.reduce_description_nadj, axis=1
                     )
+
+        if verbose: 
+            print 'size dimensions'        
+        df['size_dimensions'] = df.fillna('').apply(
+                    cleaner.get_size, axis=1
+                    )
+
+        if verbose: 
+            print 'weight dimensions'        
+        df['weight_dimensions'] = df.fillna('').apply(
+                    cleaner.get_weight, axis=1
+                    )
+
+        if verbose: 
+            print 'brand'        
+        df['product_brand'] = df.fillna('').apply(
+                    cleaner.get_brand, axis=1
+                    )
+
         if verbose:
             print 'Dominant Words'
         df['dominant_words'] = df.fillna('').apply(
@@ -522,6 +536,9 @@ class FeatureFactory:
 
         print "FINISHED PRE-PROCESSING"
         return df
+
+    def preprocess_columns_names(self):
+        return [SEARCH_CLEANED, TITLE_CLEANED, DESCRIPTION_NADJ, TITLE_NADJ, DESCRIPTION_NADJ, 'product_brand', 'dominant_words']
 
 if __name__ == '__main__':
     # This is how we can use this class.
@@ -532,14 +549,15 @@ if __name__ == '__main__':
     # show that it actually creates objects
     print ff.get_feature_names()
     print ff.get_feature_descriptions()
+
     #df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
-    df = pd.read_csv('data/test_joined.csv', encoding='ISO-8859-1')
+    df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
     #df = pd.read_csv('data/train_joined.csv', encoding='ISO-8859-1')
     df = ff.preprocess_columns(df, verbose=True)
     #df.to_csv('features_pp.out')
     df2 = ff.apply_feature_eng(df, verbose=True)
     # lets keep only computed features to reduce memory size
-    cols = ff.get_feature_names() + ['id', 'relevance']
+    cols = ff.get_feature_names() + ['id', 'product_uid', 'relevance']
     df2[cols].to_csv('data/test_features.csv', index=False)
     print 'saving to csv...'
     #df2[cols].to_csv('data/train_features_v2.csv', index=False)
