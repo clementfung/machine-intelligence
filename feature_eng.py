@@ -551,14 +551,14 @@ if __name__ == '__main__':
     print ff.get_feature_descriptions()
 
     #df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
-    df = pd.read_csv('data/train_sample.csv', encoding='ISO-8859-1')
+    df = pd.read_csv('data/test_joined.csv', encoding='ISO-8859-1')
     #df = pd.read_csv('data/train_joined.csv', encoding='ISO-8859-1')
     df = ff.preprocess_columns(df, verbose=True)
-    #df.to_csv('features_pp.out')
+    df[ff.preprocess_columns_names()].to_csv('data/test_features_pp_full.csv', index=False, encoding='utf-8')
     df2 = ff.apply_feature_eng(df, verbose=True)
     # lets keep only computed features to reduce memory size
-    cols = ff.get_feature_names() + ['id', 'product_uid', 'relevance']
-    df2[cols].to_csv('data/test_features.csv', index=False)
+    cols = ff.get_feature_names() + ['id', 'product_uid']
+    df2[cols].to_csv('data/test_features_full.csv', index=False, encoding='utf-8')
     print 'saving to csv...'
     #df2[cols].to_csv('data/train_features_v2.csv', index=False)
     #df2[cols].to_csv('data/train_sample_features.csv', index=False)

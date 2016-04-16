@@ -129,9 +129,13 @@ class ESASimilarityMatch(ESAFeatureGenerator):
         return ['ESA_0', 'ESA_025', 'ESA_05', 'ESA_075', 'ESA_Max', 'Is_High_ESA']
 
     def apply_rules(self, row):
+        
+        null_return = pd.Series(dict(ESA_0=0, ESA_025=0, ESA_05=0, ESA_075=0, ESA_Max=0, Is_High_ESA=0))
         search_term = row['search_term_cleaned']
         dom_words  = row['dominant_words']
-        relevance = row['relevance']
+
+        if (len(search_term) == 0 or len(dom_words) == 0):
+            return null_return
 
         search_reduced = search_term.split()
         dom_reduced = dom_words.split()
@@ -143,13 +147,16 @@ class ESASimilarityMatch(ESAFeatureGenerator):
             for t_term in dom_reduced:
                 
                 esa_score = compare_terms(self.process, self.outpipe, term, t_term)
-                score_map = dict(search=search_term, dom_words=dom_words, relevance=relevance, t1=term, t2=t_term, esa_score=esa_score)
+                score_map = dict(search=search_term, dom_words=dom_words, t1=term, t2=t_term, esa_score=esa_score)
                 print score_map
                 self.logfile.write(str(score_map) + "\n")
                 scores.append(score_map)
 
+        if (len(scores) == 0):
+            return null_return
+
         esadf = pd.DataFrame(scores)
-        esadf = esadf.fillna(0)
+        esadf = esadf.fillna(0)            
         
         # Remove all 0s and 1s
         esadf = esadf[esadf.esa_score != 0]
@@ -166,9 +173,9 @@ class ESASimilarityMatch(ESAFeatureGenerator):
 
 if __name__ == '__main__':
     
-    df = pd.read_csv('../features_pp.out')
+    df = pd.read_csv('../data/features_sample.csv', encoding='ISO-8859-1')
     ff = ESAFeatureFactory()
     print ff.get_feature_names()
 
     df2 = ff.apply_feature_eng(df)
-    df2.to_csv('esa_features.out')
+    df2.to_csv('../data/esa_features_sample.csv', encoding='utf-8')
