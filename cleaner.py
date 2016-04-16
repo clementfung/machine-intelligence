@@ -315,7 +315,7 @@ def reduce_to_dominant_words(row):
         dom_words_string += (find_preceding_dominant_word(tags, len(tags)-1) + "")
 
     dom_words_string = hardcode_cleaning(dom_words_string)
-    return dom_words_string
+    return downcase_str(dom_words_string)
 
 if __name__ == '__main__':
     pass
