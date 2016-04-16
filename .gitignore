@@ -73,3 +73,4 @@ data/
 features.out
 *.pkl
 train_sample.csv
+submission.csv

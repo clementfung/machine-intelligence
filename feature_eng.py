@@ -57,14 +57,17 @@ def string_compare(str_a, str_b):
     b = set(str_b.split())
     return len(a.intersection(b))
 
-def numbers_in_string(string):
+def numbers_in_string(string, prefilter=None):
+    if prefilter != None:
+        string = ''.join(re.findall(r"[-+]?\d*\.\d+|\d+" + prefilter,
+            string))
     A = re.findall(r"[-+]?\d*\.\d+|\d+",string)
     return [float(x) for x in A]
 
 
 def get_cosine_similarity(row, corpus_index, vectorizer, X):
     row_num = corpus_index[int(row['product_uid'])]
-    return cosine_similarity(X[row_num],vectorizer.transform([row['search_term']])).tolist()[0][0]
+    return cosine_similarity(X[row_num],vectorizer.transform([row[SEARCH_CLEANED]])).tolist()[0][0]
 
 #################
 ### Feature functions
@@ -88,6 +91,12 @@ class FeatureGenerator:
         return [self.feature_description] if type(self.feature_description) == str else self.feature_description
 
 
+    def preprocess_from_df(self, df):
+        """
+        Override,
+        in most cases will do nothing
+        """
+        return df
     @abc.abstractmethod
     def apply_rules(self, row):
         """
@@ -354,11 +363,11 @@ class RatioOfTitleToSearch(FeatureGenerator):
 
 ####
 # Semantic Based features
-# -- these are slow on first loadup
+# -- these are slow
 ####
 class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
     feature_description = 'Cosine similarity between search term and product description. Uses a count vectorizer'
-    def __init__(self, set_params = True,corpus_csv='data/product_descriptions.csv', *args, **kwargs):
+    def __init__(self, set_params = True,corpus_csv='data/cleaned_product_descriptions.csv', *args, **kwargs):
         FeatureGenerator.__init__(self)
         SklearnGenerator.__init__(self, *args, **kwargs)
         self.corpus_csv = corpus_csv
@@ -369,13 +378,21 @@ class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
                 #TODO
                 df_prods = pd.read_csv(self.corpus_csv)
                 vect = CountVectorizer(min_df=1, stop_words=stopwords.words('english'))
-                X_vect = vect.fit_transform(df_prods['product_description'])
+                X_vect = vect.fit_transform(df_prods[DESCRIPTION_CLEANED])
                 self.science['vect'] = vect
                 self.science['X_vect'] = X_vect
-                self.science['corpus'] = df_prods
+                self.science['corpus'] = df_prods[['product_uid']]
                 self.set_serialized()
             print 'Generating a corpus index'
             self.product_index = map_product_uid_to_index(self.science['corpus'])
+
+    def preprocess_from_df(self, df):
+        if not SEARCH_CLEANED in df.columns.tolist():
+            df[SEARCH_CLEANED] = df.apply(
+                    cleaner.clean_search, axis=1
+                    )
+
+
     def apply_rules(self, row):
         return self.set_new_features(
                 get_cosine_similarity(
@@ -388,7 +405,7 @@ class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
 
 class SearchDescriptionTfidfVectorizer(FeatureGenerator, SklearnGenerator):
     feature_description = 'Cosine similarity between search term and product description. Uses a tfidf vectorizer'
-    def __init__(self, set_params=True,corpus_csv='data/product_descriptions.csv', *args, **kwargs):
+    def __init__(self, set_params=True,corpus_csv='data/cleaned_product_descriptions.csv', *args, **kwargs):
         FeatureGenerator.__init__(self)
         SklearnGenerator.__init__(self, *args, **kwargs)
         self.corpus_csv = corpus_csv
@@ -399,13 +416,21 @@ class SearchDescriptionTfidfVectorizer(FeatureGenerator, SklearnGenerator):
                 #TODO
                 df_prods = pd.read_csv(self.corpus_csv)
                 vect = TfidfVectorizer(min_df=1, stop_words=stopwords.words('english'))
-                X_vect = vect.fit_transform(df_prods['product_description'])
+                X_vect = vect.fit_transform(df_prods[DESCRIPTION_CLEANED])
                 self.science['vect'] = vect
                 self.science['X_vect'] = X_vect
-                self.science['corpus'] = df_prods
+                #self.science['corpus'] = df_prods
+                self.science['corpus'] = df_prods[['product_uid']]
                 self.set_serialized()
             print 'Generating a corpus index'
             self.product_index = map_product_uid_to_index(self.science['corpus'])
+
+    def preprocess_from_df(self, df):
+        if not SEARCH_CLEANED in df.columns.tolist():
+            df[SEARCH_CLEANED] = df.apply(
+                    cleaner.clean_search, axis=1
+                    )
+
 
     def apply_rules(self, row):
         return self.set_new_features(
@@ -468,6 +493,7 @@ class FeatureFactory:
         for feat in self.feature_generators:
             if verbose:
                 print "Computing feature ", feat.get_feature_name()
+            feat.preprocess_from_df(df)
 
             df[feat.get_feature_name()] = df.fillna('').apply(
                     feat.apply_rules, axis=1

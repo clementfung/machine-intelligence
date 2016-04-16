@@ -17,19 +17,22 @@ if __name__ == '__main__':
     input_file  = sys.argv[2]
     output_file = sys.argv[3]
     preprocess = sys.argv[4] == 'preprocess'
-    if 'ALL' in feature_classes:
+    if not 'ALL' in feature_classes:
         # force the script to process all
-        feature_classes = []
 
-    for obj in FeatureFactory(set_params=False).feature_generators:
-        # the class you want to process
-        if not obj.__class__.__name__ in feature_classes:
-            ignore_list.append(obj.__class__)
-    ff = FeatureFactory(ignore_features=ignore_list)
+        for obj in FeatureFactory(set_params=False).feature_generators:
+            # the class you want to process
+            if not obj.__class__.__name__ in feature_classes:
+                ignore_list.append(obj.__class__)
+    ff = FeatureFactory(
+            ignore_features=ignore_list, 
+            corpus_csv='data/clean_product_descriptions.csv', 
+            pickle_path='pickles/'
+            )
     print ff.get_feature_names()
     df_in = pd.read_csv(input_file, encoding='ISO-8859-1')
     if preprocess == True:
-        df_in = ff.preprocess_columns(verbose=True)
+        df_in = ff.preprocess_columns(df_in, verbose=True)
     df_out = ff.apply_feature_eng(df_in, verbose=True)
     new_cols = ff.get_feature_names()
     if os.path.isfile(output_file):

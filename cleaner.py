@@ -10,6 +10,8 @@ from nltk.corpus import stopwords
 from unicodedata import normalize
 from nltk.tag.perceptron import PerceptronTagger
 
+import feature_eng
+
 # Global variable to load once
 print 'Loading global tagger... please wait a few seconds'
 TAGGER = PerceptronTagger()
@@ -183,7 +185,21 @@ def get_size(row):
     for attr in attributes:
         if attr[0].lower().find(SIZE_KEY) != -1:
             attr_tokens = attr[1]
-            sizes.append(attr[1])
+            sizes += feature_eng.numbers_in_string(attr[1])
+    # check the title and the description as well
+    title = row['product_title']
+    descript = row['product_description']
+    size_filter = 'in.|inches|inch'
+
+    title_nums = feature_eng.numbers_in_string(
+            title, 
+            prefilter=size_filter
+            )
+    descript_nums = feature_eng.numbers_in_string(
+            descript,
+            prefilter=size_filter,
+            )
+    sizes = sizes + title_nums + descript_nums
     return sizes
 
 def get_weight(row):
@@ -195,7 +211,19 @@ def get_weight(row):
     for attr in attributes:
         if attr[0].lower().find(SIZE_KEY) != -1:
             attr_tokens = attr[1]
-            weights.append(attr[1])
+            #weights.append(float(attr[1]))
+            weights += feature_eng.numbers_in_string(attr[1])
+    weight_filter = 'lb.|lb|pound|pounds'
+    title_nums = feature_eng.numbers_in_string(
+            row['product_title'], 
+            prefilter=weight_filter
+            )
+    descript_nums = feature_eng.numbers_in_string(
+            row['product_description'],
+            prefilter=weight_filter,
+            )
+    weights = weights  + title_nums + descript_nums
+
     return weights
 
 def get_brand(row):
