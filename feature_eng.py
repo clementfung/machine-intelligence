@@ -8,6 +8,7 @@ import cleaner
 import pandas as pd
 import re
 import nltk
+import itertools
 
 from util import flatten_to_list
 from sklearn.externals import joblib
@@ -17,6 +18,8 @@ import cPickle as pickle
 from sklearn.metrics.pairwise  import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from nltk.corpus import stopwords
+import gensim
+import numpy as np
 
 # dataframe column constants
 SEARCH = 'search_term'
@@ -29,6 +32,8 @@ TITLE_NADJ = 'product_title_nadj'
 DESCRIPTION = 'product_description'
 DESCRIPTION_CLEANED = 'product_description_cleaned'
 DESCRIPTION_NADJ = 'product_description_nadj'
+
+DOMINANT_WORDS = 'dominant_words'
 
 #################
 ### Util Functions
@@ -335,7 +340,7 @@ class SearchAndTitleDominantNadjMatch(FeatureGenerator):
     feature_description = "Matching search term to dominant word"
 
     def apply_rules(self, row):
-        dominant_words = row['dominant_words']
+        dominant_words = row[DOMINANT_WORDS]
         search_term = row[SEARCH_CLEANED]
         return self.set_new_features(string_compare(dominant_words, search_term))
 
@@ -365,6 +370,245 @@ class RatioOfTitleToSearch(FeatureGenerator):
 # Semantic Based features
 # -- these are slow
 ####
+class SearchDominantWord2VecSimilarity(FeatureGenerator):
+    feature_description = 'Word2Vec similarity between search and dominanat'
+    #TODO
+    def __init__(
+            self, 
+            set_params=True,
+            word2vec_model_path='word2vec/word2vec_title_model',
+            *args, **kwargs):
+        if set_params:
+            self.model = gensim.models.Word2Vec.load(word2vec_model_path)
+
+    def get_feature_name(self):
+        base = self.__class__.__name__
+        return [
+                '%sMean' % base,
+                '%sMin' % base,
+                '%sMedian' % base,
+                '%sMax' % base,
+                '%sPhraseSimilarity' % base,
+                ]
+
+    def preprocess_from_df(self, df):
+        if not SEARCH_CLEANED in df.columns.tolist():
+            df[SEARCH_CLEANED] = df.apply(
+                    cleaner.clean_search, axis=1
+                    )
+        if not TITLE_CLEANED in df.columns.tolist():
+            df[DOMINANT_WORDS] = df.apply(
+                    cleaner.reduce_to_dominant_words, axis=1
+                    )
+
+
+    def apply_rules(self, row):
+        search_terms = row[SEARCH_CLEANED].strip().split(' ')
+        dom_terms = cleaner.full_clean_string(row[DOMINANT_WORDS]) \
+                        .strip().split(' ')
+        similarities = []
+        for word1, word2 in itertools.product(search_terms, dom_terms):
+            try:
+                score = self.model.similarity(word1, word2)
+                if score < 1.0:
+                    similarities.append(score)
+            except KeyError:
+                pass
+                #similarities.append(0)
+        mean = np.mean(similarities) if len(similarities) > 0 else 0.
+        min_, med_, max_ = np.percentile(similarities, [0, 50, 100]) \
+                if len(similarities) > 0 else (0., 0., 0.)
+        search_filtered = [w for w in search_terms if w in self.model.vocab]
+        dom_filtered    = [w for w in dom_terms if w in self.model.vocab]
+        try:
+            phrase_score = self.model.n_similarity(search_filtered, dom_filtered)
+
+            if not isinstance(phrase_score, np.float64):
+                phrase_score = 0.
+        except TypeError:
+            phrase_score = 0.
+        return self.set_new_features(
+                (mean, min_, med_, max_, phrase_score)
+                )
+
+
+class SearchTitleWord2VecSimilarity(FeatureGenerator):
+    feature_description = 'Word2Vec similarity'
+    #TODO
+    def __init__(
+            self, 
+            set_params=True,
+            word2vec_model_path='word2vec/word2vec_title_model',
+            *args, **kwargs):
+        if set_params:
+            self.model = gensim.models.Word2Vec.load(word2vec_model_path)
+
+    def get_feature_name(self):
+        base = self.__class__.__name__
+        return [
+                '%sMean' % base,
+                '%sMin' % base,
+                '%sMedian' % base,
+                '%sMax' % base,
+                '%sPhraseSimilarity' % base,
+                ]
+
+    def preprocess_from_df(self, df):
+        if not SEARCH_CLEANED in df.columns.tolist():
+            df[SEARCH_CLEANED] = df.apply(
+                    cleaner.clean_search, axis=1
+                    )
+        if not TITLE_CLEANED in df.columns.tolist():
+            df[TITLE_CLEANED] = df.apply(
+                    cleaner.clean_title, axis=1
+                    )
+
+
+    def apply_rules(self, row):
+        search_terms = row[SEARCH_CLEANED].strip().split(' ')
+        title_terms = row[TITLE_CLEANED].strip().split(' ')
+        similarities = []
+        for word1, word2 in itertools.product(search_terms, title_terms):
+            try:
+                score = self.model.similarity(word1, word2)
+                if score < 1.0:
+                    similarities.append(score)
+            except KeyError:
+                pass
+                #similarities.append(0)
+        mean = np.mean(similarities) if len(similarities) > 0 else 0.
+        min_, med_, max_ = np.percentile(similarities, [0, 50, 100]) \
+                if len(similarities) > 0 else (0., 0., 0.)
+        search_filtered = [w for w in search_terms if w in self.model.vocab]
+        title_filtered    = [w for w in title_terms if w in self.model.vocab]
+        try:
+            phrase_score = self.model.n_similarity(search_filtered, title_filtered) 
+            if not isinstance(phrase_score, np.float64):
+                phrase_score = 0.
+
+        except TypeError:
+            phrase_score = 0.
+        return self.set_new_features(
+                (mean, min_, med_, max_, phrase_score)
+                )
+
+class SearchTitleTfidfVectorizer(FeatureGenerator, SklearnGenerator):
+    feature_description = 'Cosine similarity between search term and product title. Uses a count vectorizer'
+    def __init__(self, set_params = True,corpus_csv='data/cleaned_product_descriptions.csv', *args, **kwargs):
+        FeatureGenerator.__init__(self)
+        SklearnGenerator.__init__(self, *args, **kwargs)
+        self.corpus_csv = corpus_csv
+        if set_params == True:
+            if self.is_serialized():
+                self.get_serialized()
+            else:
+                #TODO
+                df_prods = pd.read_csv(self.corpus_csv)
+                vect = TfidfVectorizer(min_df=1, stop_words=stopwords.words('english'))
+                X_vect = vect.fit_transform(df_prods[TITLE_CLEANED])
+                self.science['vect'] = vect
+                self.science['X_vect'] = X_vect
+                self.science['corpus'] = df_prods[['product_uid']]
+                self.set_serialized()
+            print 'Generating a corpus index'
+            self.product_index = map_product_uid_to_index(self.science['corpus'])
+
+    def preprocess_from_df(self, df):
+        if not SEARCH_CLEANED in df.columns.tolist():
+            df[SEARCH_CLEANED] = df.apply(
+                    cleaner.clean_search, axis=1
+                    )
+
+
+    def apply_rules(self, row):
+        return self.set_new_features(
+                get_cosine_similarity(
+                    row, 
+                    self.product_index,
+                    self.science['vect'], 
+                    self.science['X_vect'],
+                    )
+                )
+
+
+class SearchTitleCountVectorizer(FeatureGenerator, SklearnGenerator):
+    feature_description = 'Cosine similarity between search term and product title. Uses a count vectorizer'
+    def __init__(self, set_params = True,corpus_csv='data/cleaned_product_descriptions.csv', *args, **kwargs):
+        FeatureGenerator.__init__(self)
+        SklearnGenerator.__init__(self, *args, **kwargs)
+        self.corpus_csv = corpus_csv
+        if set_params == True:
+            if self.is_serialized():
+                self.get_serialized()
+            else:
+                #TODO
+                df_prods = pd.read_csv(self.corpus_csv)
+                vect = CountVectorizer(min_df=1, stop_words=stopwords.words('english'))
+                X_vect = vect.fit_transform(df_prods[TITLE_CLEANED])
+                self.science['vect'] = vect
+                self.science['X_vect'] = X_vect
+                self.science['corpus'] = df_prods[['product_uid']]
+                self.set_serialized()
+            print 'Generating a corpus index'
+            self.product_index = map_product_uid_to_index(self.science['corpus'])
+
+    def preprocess_from_df(self, df):
+        if not SEARCH_CLEANED in df.columns.tolist():
+            df[SEARCH_CLEANED] = df.apply(
+                    cleaner.clean_search, axis=1
+                    )
+
+
+    def apply_rules(self, row):
+        return self.set_new_features(
+                get_cosine_similarity(
+                    row, 
+                    self.product_index,
+                    self.science['vect'], 
+                    self.science['X_vect'],
+                    )
+                )
+
+class SearchTitleCountTwoGramVectorizer(FeatureGenerator, SklearnGenerator):
+    feature_description = 'Cosine similarity between search term and product title for 2 grams. Uses a count vectorizer'
+    def __init__(self, set_params = True,corpus_csv='data/cleaned_product_descriptions.csv', *args, **kwargs):
+        FeatureGenerator.__init__(self)
+        SklearnGenerator.__init__(self, *args, **kwargs)
+        self.corpus_csv = corpus_csv
+        if set_params == True:
+            if self.is_serialized():
+                self.get_serialized()
+            else:
+                #TODO
+                df_prods = pd.read_csv(self.corpus_csv)
+                vect = CountVectorizer(min_df=1, stop_words=stopwords.words('english'), ngram_range=(2,2))
+                X_vect = vect.fit_transform(df_prods[TITLE_CLEANED])
+                self.science['vect'] = vect
+                self.science['X_vect'] = X_vect
+                self.science['corpus'] = df_prods[['product_uid']]
+                self.set_serialized()
+            print 'Generating a corpus index'
+            self.product_index = map_product_uid_to_index(self.science['corpus'])
+
+    def preprocess_from_df(self, df):
+        if not SEARCH_CLEANED in df.columns.tolist():
+            df[SEARCH_CLEANED] = df.apply(
+                    cleaner.clean_search, axis=1
+                    )
+
+
+    def apply_rules(self, row):
+        return self.set_new_features(
+                get_cosine_similarity(
+                    row, 
+                    self.product_index,
+                    self.science['vect'], 
+                    self.science['X_vect'],
+                    )
+                )
+
+
+
 class SearchDescriptionCountVectorizer(FeatureGenerator, SklearnGenerator):
     feature_description = 'Cosine similarity between search term and product description. Uses a count vectorizer'
     def __init__(self, set_params = True,corpus_csv='data/cleaned_product_descriptions.csv', *args, **kwargs):
@@ -556,7 +800,7 @@ class FeatureFactory:
 
         if verbose:
             print 'Dominant Words'
-        df['dominant_words'] = df.fillna('').apply(
+        df[DOMINANT_WORDS] = df.fillna('').apply(
                     cleaner.reduce_to_dominant_words, axis=1
                     )
 
@@ -564,7 +808,7 @@ class FeatureFactory:
         return df
 
     def preprocess_columns_names(self):
-        return [SEARCH_CLEANED, TITLE_CLEANED, DESCRIPTION_NADJ, TITLE_NADJ, DESCRIPTION_NADJ, 'product_brand', 'dominant_words']
+        return [SEARCH_CLEANED, TITLE_CLEANED, DESCRIPTION_NADJ, TITLE_NADJ, DESCRIPTION_NADJ, 'product_brand', DOMINANT_WORDS]
 
 if __name__ == '__main__':
     # This is how we can use this class.
