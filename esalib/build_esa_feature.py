@@ -12,8 +12,12 @@ import feature_eng as fe
 def compare_terms(process, pipe, t1, t2):
 
     score = 0
-    while (True):
+    i = 0
+
+    # Do a max tries for failures
+    while (i < 50):    
         out = ""
+        i = i + 1
         try:
             process.stdin.write(t1 + "\n" + t2 + "\n")
             time.sleep(0.05)
@@ -134,7 +138,7 @@ class ESASimilarityMatch(ESAFeatureGenerator):
         search_term = row['search_term_cleaned']
         dom_words  = row['dominant_words']
 
-        if (len(search_term) == 0 or len(dom_words) == 0):
+        if (len(search_term) == 0 or isinstance(dom_words, float)):
             return null_return
 
         search_reduced = search_term.split()
@@ -173,9 +177,9 @@ class ESASimilarityMatch(ESAFeatureGenerator):
 
 if __name__ == '__main__':
     
-    df = pd.read_csv('../data/features_sample.csv', encoding='ISO-8859-1')
+    df = pd.read_csv('../data/test_features_pp_full.csv', encoding='ISO-8859-1')
     ff = ESAFeatureFactory()
     print ff.get_feature_names()
 
     df2 = ff.apply_feature_eng(df)
-    df2.to_csv('../data/esa_features_sample.csv', encoding='utf-8')
+    df2.to_csv('../data/test_esa_features_full.csv', encoding='utf-8')
