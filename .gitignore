@@ -74,3 +74,4 @@ features.out
 *.pkl
 train_sample.csv
 submission.csv
+word2vec_title_model
