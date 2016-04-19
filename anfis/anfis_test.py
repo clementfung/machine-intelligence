@@ -6,8 +6,7 @@ import sys
 sys.path.append('../')
 #import feature_eng
 
-ts = numpy.loadtxt("trainingSet.txt", usecols=[1,2,3])#numpy.loadtxt('c:\\Python_fiddling\\myProject\\MF\\trainingSet.txt',usecols=[1,2,3])
-df = pd.read_csv('../data/test_features_full.csv', encoding='ISO-8859-1')
+df = pd.read_csv('../data/train_sample_features.csv', encoding='ISO-8859-1')
 
 #ff = feature_eng.FeatureFactory()
 X = df.as_matrix(['SearchAndProductLastWordMatch','SearchAndProductLastWordNAdjMatch','SearchAndTitleDominantNadjMatch'])
@@ -50,11 +49,14 @@ mf = [[['gaussmf',{'mean':-11.,'sigma':5.}],['gaussmf',{'mean':-8.,'sigma':5.}],
 mfc = membership.membershipfunction.MemFuncs(mf)
 anf = anfis.ANFIS(X, Y, mfc)
 print 'start training'
+'''
 anf.trainHybridJangOffLine(epochs=10)
 print round(anf.consequents[-1][0],6)
 print round(anf.consequents[-2][0],6)
 print round(anf.fittedValues[9][0],6)
 if round(anf.consequents[-1][0],6) == -5.275538 and round(anf.consequents[-2][0],6) == -1.990703 and round(anf.fittedValues[9][0],6) == 0.002249:
     print 'test is good'
+'''
+import pdb; pdb.set_trace()
 anf.plotErrors()
 anf.plotResults()

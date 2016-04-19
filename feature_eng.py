@@ -408,25 +408,34 @@ class SearchDominantWord2VecSimilarity(FeatureGenerator):
                         .strip().split(' ')
         similarities = []
         for word1, word2 in itertools.product(search_terms, dom_terms):
-            try:
-                score = self.model.similarity(word1, word2)
-                if score < 1.0:
-                    similarities.append(score)
-            except KeyError:
-                pass
-                #similarities.append(0)
+            if word1 != word2:
+                try:
+                    score = self.model.similarity(word1, word2)
+                    if score < 1.0:
+                        similarities.append(score)
+                except KeyError:
+                    pass
+                    #similarities.append(0)
         mean = np.mean(similarities) if len(similarities) > 0 else 0.
         min_, med_, max_ = np.percentile(similarities, [0, 50, 100]) \
                 if len(similarities) > 0 else (0., 0., 0.)
+        # generate 'phrases'
         search_filtered = [w for w in search_terms if w in self.model.vocab]
         dom_filtered    = [w for w in dom_terms if w in self.model.vocab]
-        try:
-            phrase_score = self.model.n_similarity(search_filtered, dom_filtered)
+        phrase_score = 0.
+        if len(search_filtered)  + 2 >= len(search_terms) and \
+                len(dom_filtered) + 2 >= len(dom_terms):
+                # reduced too much so its useless
+             
+            try:
+                phrase_score = self.model.n_similarity(search_filtered, dom_filtered)
 
-            if not isinstance(phrase_score, np.float64):
+                if not isinstance(phrase_score, np.float64):
+                    # sometimes gives back an array instead of
+                    # a single float
+                    phrase_score = 0.
+            except TypeError:
                 phrase_score = 0.
-        except TypeError:
-            phrase_score = 0.
         return self.set_new_features(
                 (mean, min_, med_, max_, phrase_score)
                 )
@@ -469,25 +478,32 @@ class SearchTitleWord2VecSimilarity(FeatureGenerator):
         title_terms = row[TITLE_CLEANED].strip().split(' ')
         similarities = []
         for word1, word2 in itertools.product(search_terms, title_terms):
-            try:
-                score = self.model.similarity(word1, word2)
-                if score < 1.0:
-                    similarities.append(score)
-            except KeyError:
-                pass
-                #similarities.append(0)
+            if word1 != word2:
+                try:
+                    score = self.model.similarity(word1, word2)
+                    if score < 1.0:
+                        # same word is not that interesting
+                        similarities.append(score)
+                except KeyError:
+                    # the word is not part of the vocab
+                    pass
+                    #similarities.append(0)
         mean = np.mean(similarities) if len(similarities) > 0 else 0.
         min_, med_, max_ = np.percentile(similarities, [0, 50, 100]) \
                 if len(similarities) > 0 else (0., 0., 0.)
         search_filtered = [w for w in search_terms if w in self.model.vocab]
         title_filtered    = [w for w in title_terms if w in self.model.vocab]
-        try:
-            phrase_score = self.model.n_similarity(search_filtered, title_filtered) 
-            if not isinstance(phrase_score, np.float64):
-                phrase_score = 0.
+        phrase_score = 0.
+        if len(search_filtered)  + 2 >= len(search_terms) and \
+                len(title_filtered) + 2 >= len(title_terms):
+            # reduced too much so its useless
+            try:
+                phrase_score = self.model.n_similarity(search_filtered, title_filtered) 
+                if not isinstance(phrase_score, np.float64):
+                    phrase_score = 0.
 
-        except TypeError:
-            phrase_score = 0.
+            except TypeError:
+                phrase_score = 0.
         return self.set_new_features(
                 (mean, min_, med_, max_, phrase_score)
                 )

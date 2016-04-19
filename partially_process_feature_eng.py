@@ -38,7 +38,7 @@ if __name__ == '__main__':
     if os.path.isfile(output_file):
         df_prev = pd.read_csv(output_file)
         df_prev[new_cols] = df_out[new_cols]
-        df_prev.to_csv(output_file)
+        df_prev.to_csv(output_file, index=False)
     else:
         keep_cols = ['id']
         if 'relevance' in df_out.columns.tolist():
