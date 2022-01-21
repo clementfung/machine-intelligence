@@ -1,7 +1,7 @@
 dataset==0.6.0
 ggplot==0.6.8
 ipykernel==4.2.2
-ipython==4.1.2
+ipython==7.16.3
 ipython-genutils==0.1.0
 jupyter-client==4.1.1
 jupyter-core==4.0.6
