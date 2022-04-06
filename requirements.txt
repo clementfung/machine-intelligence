@@ -7,7 +7,7 @@ jupyter-client==4.1.1
 jupyter-core==4.0.6
 matplotlib==1.4.3
 networkx==1.10
-notebook==5.7.8
+notebook==6.4.10
 numpy==1.10.4
 pandas==0.17.1
 rpy2==2.7.7
